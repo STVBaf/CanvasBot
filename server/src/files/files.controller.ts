@@ -1,105 +1,23 @@
-import { Controller, Post, Get, Query, Param, Headers, UnauthorizedException, BadRequestException, Response } from '@nestjs/common';
+import { Controller, Post, Get, Query, Param, BadRequestException, NotFoundException, Response } from '@nestjs/common';
 import { Response as ExpressResponse } from 'express';
-// import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { FilesService } from './files.service';
+import { GetToken } from '../auth/get-token.decorator';
+// import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
 @Controller('files')
 export class FilesController {
   constructor(private readonly filesService: FilesService) {}
 
   /**
-   * 获取课程文件列表（直接从 Canvas 获取，不需要同步）
-   * GET /api/files/canvas/course/:courseId
+   * 同步课程文件
+   * POST /api/files/sync?courseId=<COURSE_ID>
    */
-  @Get('canvas/course/:courseId')
-  async getCourseFilesFromCanvas(
-    @Param('courseId') courseId: string,
-    @Headers('authorization') authHeader?: string
-  ) {
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      throw new UnauthorizedException({
-        statusCode: 401,
-        message: '缺少认证令牌，请先登录',
-        error: 'Unauthorized'
-      });
-    }
-
-    const token = authHeader.split(' ')[1];
-    if (!token) {
-      throw new UnauthorizedException({
-        statusCode: 401,
-        message: 'Token 格式无效',
-        error: 'Unauthorized'
-      });
-    }
-
-    const files = await this.filesService.getCourseFilesFromCanvas(token, courseId);
-    
-    return {
-      courseId,
-      files,
-      total: files.length,
-    };
-  }
-
-  /**
-   * 下载单个文件
-   * GET /api/files/download/:fileId
-   */
-  @Get('download/:fileId')
-  async downloadFile(
-    @Param('fileId') fileId: string,
-    @Headers('authorization') authHeader: string | undefined,
-    @Response() res: ExpressResponse
-  ) {
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      throw new UnauthorizedException({
-        statusCode: 401,
-        message: '缺少认证令牌，请先登录',
-        error: 'Unauthorized'
-      });
-    }
-
-    const token = authHeader.split(' ')[1];
-    if (!token) {
-      throw new UnauthorizedException({
-        statusCode: 401,
-        message: 'Token 格式无效',
-        error: 'Unauthorized'
-      });
-    }
-
-    const file = await this.filesService.downloadSingleFile(token, fileId);
-    
-    // 设置响应头
-    res.setHeader('Content-Type', file.contentType || 'application/octet-stream');
-    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(file.fileName)}"`);
-    res.setHeader('Content-Length', file.size);
-    
-    // 发送文件内容
-    res.send(file.buffer);
-  }
-
   @Post('sync')
   // @UseGuards(JwtAuthGuard)
-  async sync(@Query('courseId') courseId: string, @Headers('authorization') authHeader?: string) {
-    // Temporary: Direct Token Access
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      throw new UnauthorizedException({
-        statusCode: 401,
-        message: '缺少认证令牌，请先登录',
-        error: 'Unauthorized'
-      });
-    }
-    const token = authHeader.split(' ')[1];
-    if (!token) {
-      throw new UnauthorizedException({
-        statusCode: 401,
-        message: 'Token 格式无效',
-        error: 'Unauthorized'
-      });
-    }
-    
+  async sync(
+    @Query('courseId') courseId: string,
+    @GetToken() token: string
+  ) {
     if (!courseId) {
       throw new BadRequestException({
         statusCode: 400,
@@ -118,31 +36,53 @@ export class FilesController {
   }
 
   /**
-   * 获取指定课程的文件列表
+   * 获取课程文件列表（直接从 Canvas 获取，不需要同步）
+   * GET /api/files/course/:courseId/live
+   */
+  @Get('course/:courseId/live')
+  async getCourseFilesFromCanvas(
+    @Param('courseId') courseId: string,
+    @GetToken() token: string
+  ) {
+    const files = await this.filesService.getCourseFilesFromCanvas(token, courseId);
+    
+    return {
+      courseId,
+      files,
+      total: files.length,
+    };
+  }
+
+  /**
+   * 下载单个文件
+   * GET /api/files/download/:fileId
+   */
+  @Get('download/:fileId')
+  async downloadFile(
+    @Param('fileId') fileId: string,
+    @GetToken() token: string,
+    @Response() res: ExpressResponse
+  ) {
+    const file = await this.filesService.downloadSingleFile(token, fileId);
+    
+    // 设置响应头
+    res.setHeader('Content-Type', file.contentType || 'application/octet-stream');
+    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(file.fileName)}"`);
+    res.setHeader('Content-Length', file.size);
+    
+    // 发送文件内容
+    res.send(file.buffer);
+  }
+
+  /**
+   * 获取指定课程的文件列表（从数据库获取已同步的文件）
    * GET /api/files/course/:courseId
    */
   @Get('course/:courseId')
   async getCourseFiles(
     @Param('courseId') courseId: string,
-    @Headers('authorization') authHeader?: string
+    @GetToken() token: string
   ) {
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      throw new UnauthorizedException({
-        statusCode: 401,
-        message: '缺少认证令牌，请先登录',
-        error: 'Unauthorized'
-      });
-    }
-
-    const token = authHeader.split(' ')[1];
-    if (!token) {
-      throw new UnauthorizedException({
-        statusCode: 401,
-        message: 'Token 格式无效',
-        error: 'Unauthorized'
-      });
-    }
-
     const files = await this.filesService.getCourseFiles(token, courseId);
     
     return {
@@ -153,39 +93,18 @@ export class FilesController {
   }
 
   /**
-   * 获取文件详情
+   * 获取文件详情（通配符路由，必须放在最后）
    * GET /api/files/:fileId
    */
   @Get(':fileId')
   async getFileDetail(
     @Param('fileId') fileId: string,
-    @Headers('authorization') authHeader?: string
+    @GetToken() token: string
   ) {
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      throw new UnauthorizedException({
-        statusCode: 401,
-        message: '缺少认证令牌，请先登录',
-        error: 'Unauthorized'
-      });
-    }
-
-    const token = authHeader.split(' ')[1];
-    if (!token) {
-      throw new UnauthorizedException({
-        statusCode: 401,
-        message: 'Token 格式无效',
-        error: 'Unauthorized'
-      });
-    }
-
     const file = await this.filesService.getFileDetail(fileId, token);
     
     if (!file) {
-      throw new BadRequestException({
-        statusCode: 404,
-        message: '文件不存在',
-        error: 'Not Found'
-      });
+      throw new NotFoundException('文件不存在');
     }
 
     return file;

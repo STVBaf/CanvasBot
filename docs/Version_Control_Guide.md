@@ -1,5 +1,7 @@
 # 工程代码版本管理说明手册
 
+> 状态（2025-12-15）：适用于当前 Monorepo（web/server/docs）。请在提交前对照 README 的运行/部署要求，避免引用旧版 SQLite/OAuth 流程。
+
 （适用于 Canvas 课程助手项目）
 
 ## 1. 目的说明

@@ -41,10 +41,16 @@ export default function CoursesPage() {
     fetchCourses();
   }, []);
 
-  const filteredCourses = courses.filter(course => 
-    course.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (course.course_code && course.course_code.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
+  const filteredCourses = courses.filter(course => {
+    const searchValue = searchTerm.trim();
+    if (!searchValue) return true; // 空搜索显示所有课程
+    
+    const courseName = (course.name || '');
+    const courseCode = (course.course_code || '');
+    
+    // 直接匹配，不做大小写转换，确保中文和数字都能正确匹配
+    return courseName.includes(searchValue) || courseCode.includes(searchValue);
+  });
 
   const container = {
     hidden: { opacity: 0 },
@@ -90,6 +96,7 @@ export default function CoursesPage() {
         </div>
       ) : (
         <motion.div 
+          key={searchTerm}
           variants={container}
           initial="hidden"
           animate="show"

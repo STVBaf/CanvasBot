@@ -1,5 +1,6 @@
-import { Controller, Get, Param, Query, Headers, UnauthorizedException } from '@nestjs/common';
+import { Controller, Get, Param, Query } from '@nestjs/common';
 import { AssignmentsService } from './assignments.service';
+import { GetToken } from '../auth/get-token.decorator';
 
 @Controller('assignments')
 export class AssignmentsController {
@@ -12,13 +13,8 @@ export class AssignmentsController {
   @Get('course/:courseId')
   async getCourseAssignments(
     @Param('courseId') courseId: string,
-    @Headers('authorization') authHeader?: string
+    @GetToken() token: string
   ) {
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      throw new UnauthorizedException('缺少认证令牌');
-    }
-
-    const token = authHeader.split(' ')[1];
     const assignments = await this.assignmentsService.getCourseAssignments(token, courseId);
 
     return {
@@ -36,13 +32,8 @@ export class AssignmentsController {
   async getAssignment(
     @Param('courseId') courseId: string,
     @Param('assignmentId') assignmentId: string,
-    @Headers('authorization') authHeader?: string
+    @GetToken() token: string
   ) {
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      throw new UnauthorizedException('缺少认证令牌');
-    }
-
-    const token = authHeader.split(' ')[1];
     const assignment = await this.assignmentsService.getAssignment(token, courseId, assignmentId);
 
     return assignment;
@@ -50,26 +41,17 @@ export class AssignmentsController {
 
   /**
    * 获取即将到期的作业
-   * GET /api/assignments/upcoming?days=30
+   * GET /api/assignments/upcoming?days=7
    */
   @Get('upcoming')
   async getUpcomingAssignments(
-    @Query('days') days: string = '30',
-    @Headers('authorization') authHeader?: string
+    @Query('days') days: string = '7',
+    @GetToken() token: string
   ) {
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      throw new UnauthorizedException('缺少认证令牌');
-    }
-
-    const token = authHeader.split(' ')[1];
-    const daysAhead = parseInt(days, 10) || 30;
+    const daysAhead = parseInt(days, 10) || 7;
     const assignments = await this.assignmentsService.getUpcomingAssignments(token, daysAhead);
 
-    return {
-      assignments,
-      total: assignments.length,
-      daysAhead,
-    };
+    return assignments;
   }
 
   /**
@@ -77,18 +59,9 @@ export class AssignmentsController {
    * GET /api/assignments/urgent
    */
   @Get('urgent')
-  async getUrgentAssignments(@Headers('authorization') authHeader?: string) {
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      throw new UnauthorizedException('缺少认证令牌');
-    }
-
-    const token = authHeader.split(' ')[1];
+  async getUrgentAssignments(@GetToken() token: string) {
     const assignments = await this.assignmentsService.getUrgentAssignments(token);
 
-    return {
-      assignments,
-      total: assignments.length,
-      message: assignments.length > 0 ? `您有 ${assignments.length} 个作业即将到期` : '暂无紧急作业',
-    };
+    return assignments;
   }
 }

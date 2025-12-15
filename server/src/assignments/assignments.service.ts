@@ -43,13 +43,13 @@ export class AssignmentsService {
   }
 
   /**
-   * 获取紧急作业（3天内到期）
+   * 获取紧急作业（7天内到期）
    */
   async getUrgentAssignments(accessToken: string) {
     const assignments = await this.canvas.getUpcomingAssignments(accessToken);
     
     const now = new Date();
-    const urgentDate = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
+    const urgentDate = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
     
     const urgent = assignments.filter((assignment: any) => {
       if (!assignment.due_at) return false;
@@ -91,11 +91,21 @@ export class AssignmentsService {
       description = this.decodeUnicodeString(description);
     }
 
+    // 检查当前用户是否已提交
+    // Canvas API 在 include=['submission'] 时会返回 submission 对象
+    const submission = assignment.submission;
+    const hasSubmitted = submission?.workflow_state && 
+                        submission.workflow_state !== 'unsubmitted';
+
+    // 处理课程信息（upcoming_events API 可能不包含完整的 course 对象）
+    const courseName = assignment.course?.name || assignment.context_name || null;
+    const courseCode = assignment.course?.course_code || null;
+
     return {
       id: assignment.id,
       courseId: assignment.course_id,
-      courseName: assignment.course?.name,
-      courseCode: assignment.course?.course_code,
+      courseName,
+      courseCode,
       name: assignment.name,
       description: description,
       dueAt: assignment.due_at,
@@ -104,13 +114,17 @@ export class AssignmentsService {
       pointsPossible: assignment.points_possible,
       submissionTypes: assignment.submission_types || [],
       allowedExtensions: assignment.allowed_extensions || [],
-      hasSubmittedSubmissions: assignment.has_submitted_submissions || false,
+      hasSubmitted: hasSubmitted,
+      submissionStatus: submission?.workflow_state || 'unsubmitted',
+      submittedAt: submission?.submitted_at || null,
+      grade: submission?.grade || null,
+      score: submission?.score || null,
       published: assignment.published || false,
       htmlUrl: assignment.html_url,
       isOverdue,
       daysUntilDue,
       hoursUntilDue,
-      isUrgent: daysUntilDue !== null && daysUntilDue >= 0 && daysUntilDue <= 3,
+      isUrgent: daysUntilDue !== null && daysUntilDue >= 0 && daysUntilDue <= 7,
       gradingType: assignment.grading_type,
       createdAt: assignment.created_at,
       updatedAt: assignment.updated_at,

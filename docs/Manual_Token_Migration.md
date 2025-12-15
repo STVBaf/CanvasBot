@@ -1,5 +1,7 @@
 # Canvas Helper - 手动 Token 登录改造总结
 
+> 状态（2025-12-15）：仍采用手动 Canvas Access Token 登录；OAuth2 未启用。适用当前发布版本。
+
 ## 改造时间
 2025年12月1日
 

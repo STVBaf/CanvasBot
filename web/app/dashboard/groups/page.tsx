@@ -28,7 +28,7 @@ export default function GroupsPage() {
     setLoading(true);
     try {
       const [groupsData, coursesData] = await Promise.all([
-        api.getGroups(),
+        api.getAllGroups(),  // 🔑 获取所有课程的所有小组（全局列表）
         api.getCourses()
       ]);
       // 增加安全检查，确保返回的是数组

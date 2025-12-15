@@ -20,12 +20,11 @@ export class UserService {
       throw new UnauthorizedException('无法获取用户信息');
     }
 
-    // 2. 构造邮箱（如果没有，使用 Canvas ID）
-    const email = profile.primary_email || profile.login_id || `canvas_user_${profile.id}@example.com`;
-    
-    // 3. 查找或创建用户
-    let user = await this.prisma.user.findUnique({ 
-      where: { email },
+    const canvasId = String(profile.id);
+
+    // 2. 优先通过 canvasId 查找用户
+    let user = await this.prisma.user.findFirst({ 
+      where: { canvasId },
       select: {
         id: true,
         email: true,
@@ -38,11 +37,12 @@ export class UserService {
 
     if (!user) {
       // 创建新用户
+      const email = profile.primary_email || profile.login_id || `canvas_user_${canvasId}@example.com`;
       user = await this.prisma.user.create({
         data: {
           email,
           name: profile.name ?? null,
-          canvasId: profile.id ? String(profile.id) : null,
+          canvasId,
           avatar: profile.avatar_url ?? null,
         },
         select: {

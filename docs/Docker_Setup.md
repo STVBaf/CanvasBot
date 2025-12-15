@@ -1,5 +1,7 @@
 # Docker 部署指南
 
+> 状态（2025-12-15）：默认使用 **MySQL 8 + Redis 7**（见 docker-compose.yml）。如引用旧版 SQLite，请以本文件与 README 为准。
+
 本项目使用 Docker 部署 MySQL 和 Redis 服务。
 
 ## 前置要求

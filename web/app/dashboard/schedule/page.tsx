@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Calendar as CalendarIcon, Clock, CheckCircle2, Circle, Filter, X, ArrowUpRight, Loader2 } from 'lucide-react';
+import { Calendar as CalendarIcon, Clock, CheckCircle2, Circle, Filter, X, ArrowUpRight, Loader2, BookOpen } from 'lucide-react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { api } from '@/lib/api';
@@ -14,21 +14,78 @@ export default function SchedulePage() {
   const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
   const [showPendingOnly, setShowPendingOnly] = useState(false);
+  const [showOnlyNotOverdue, setShowOnlyNotOverdue] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
       try {
-        const [upcomingData, urgentData, coursesData] = await Promise.all([
-          api.getUpcomingAssignments(30),
-          api.getUrgentAssignments(),
-          api.getCourses()
-        ]);
-        setAssignments(Array.isArray(upcomingData) ? upcomingData : []);
-        setUrgentDeadlines(Array.isArray(urgentData) ? urgentData : []);
+        console.log('[Schedule] Fetching data...');
+        
+        // First fetch courses
+        const coursesData = await api.getCourses();
+        console.log('[Schedule] Courses:', coursesData);
         setCourses(Array.isArray(coursesData) ? coursesData : []);
+        
+        if (!Array.isArray(coursesData) || coursesData.length === 0) {
+          console.log('[Schedule] No courses found');
+          setAssignments([]);
+          setUrgentDeadlines([]);
+          setLoading(false);
+          return;
+        }
+        
+        // Fetch assignments for each course
+        console.log('[Schedule] Fetching assignments for', coursesData.length, 'courses...');
+        const assignmentPromises = coursesData.map(course => 
+          api.getCourseAssignments(course.id).then(assignments => 
+            // Add course info to each assignment
+            assignments.map(a => ({
+              ...a,
+              courseId: String(course.id),
+              courseName: a.courseName || course.name
+            }))
+          ).catch(error => {
+            console.error(`[Schedule] Failed to fetch assignments for course ${course.id}:`, error);
+            return [];
+          })
+        );
+        
+        const assignmentArrays = await Promise.all(assignmentPromises);
+        const allAssignments = assignmentArrays.flat();
+        console.log('[Schedule] Total assignments fetched:', allAssignments.length);
+        
+        // Sort assignments by due date (ascending - earliest first)
+        const sortedAssignments = allAssignments
+          .filter(a => a.dueAt) // Only keep assignments with due dates
+          .sort((a, b) => {
+            const dateA = new Date(a.dueAt!).getTime();
+            const dateB = new Date(b.dueAt!).getTime();
+            return dateA - dateB;
+          });
+        
+        console.log('[Schedule] Sorted assignments:', sortedAssignments.length);
+        console.log('[Schedule] Sample assignment data:', sortedAssignments.slice(0, 3).map(a => ({
+          name: a.name,
+          hasSubmitted: a.hasSubmitted,
+          submissionStatus: a.submissionStatus,
+          dueAt: a.dueAt
+        })));
+        setAssignments(sortedAssignments);
+        
+        // Extract urgent assignments (3 days or less)
+        const now = new Date();
+        const threeDaysLater = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
+        const urgent = sortedAssignments.filter(a => {
+          if (!a.dueAt) return false;
+          const dueDate = new Date(a.dueAt);
+          return dueDate >= now && dueDate <= threeDaysLater;
+        });
+        console.log('[Schedule] Urgent assignments (3 days):', urgent.length);
+        setUrgentDeadlines(urgent);
+        
       } catch (error) {
-        console.error('Failed to fetch schedule data:', error);
+        console.error('[Schedule] Failed to fetch data:', error);
         setAssignments([]);
         setUrgentDeadlines([]);
         setCourses([]);
@@ -44,8 +101,29 @@ export default function SchedulePage() {
     const course = courses.find(c => String(c.id) === String(courseId));
     return course ? course.course_code : 'Unknown';
   };
+  
+  const getCourseName = (courseId?: string | number) => {
+    if (!courseId) return '未知课程';
+    const course = courses.find(c => String(c.id) === String(courseId));
+    return course ? course.name : '未知课程';
+  };
+  
+  const getCourseColor = (courseId?: string | number) => {
+    const colors = [
+      { bg: 'bg-blue-100', text: 'text-blue-600' },
+      { bg: 'bg-green-100', text: 'text-green-600' },
+      { bg: 'bg-purple-100', text: 'text-purple-600' },
+      { bg: 'bg-pink-100', text: 'text-pink-600' },
+      { bg: 'bg-indigo-100', text: 'text-indigo-600' },
+      { bg: 'bg-orange-100', text: 'text-orange-600' },
+      { bg: 'bg-teal-100', text: 'text-teal-600' },
+      { bg: 'bg-cyan-100', text: 'text-cyan-600' },
+    ];
+    const hash = String(courseId || 0).split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    return colors[hash % colors.length];
+  };
 
-  const formatDisplayDate = (dateString: string | null) => {
+  const formatDisplayDate = (dateString?: string | null) => {
     if (!dateString) return '无截止日期';
     const date = new Date(dateString);
     const now = new Date();
@@ -56,15 +134,26 @@ export default function SchedulePage() {
     return date.toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
   };
   
-  const formatDueDate = (dateString: string | null) => {
+  const formatDueDate = (dateString?: string | null) => {
     if (!dateString) return '无截止日期';
     const date = new Date(dateString);
     return date.toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
   };
 
-  const filteredAssignments = Array.isArray(assignments) 
-    ? assignments.filter(assign => !showPendingOnly || !assign.hasSubmittedSubmissions) 
-    : [];
+  const filteredAssignments = assignments.filter(assign => {
+    // 筛选未完成的作业
+    if (showPendingOnly && assign.hasSubmitted) return false;
+    
+    // 筛选未截止的作业
+    if (showOnlyNotOverdue) {
+      if (!assign.dueAt) return false;
+      const now = new Date();
+      const dueDate = new Date(assign.dueAt);
+      if (dueDate < now) return false;
+    }
+    
+    return true;
+  });
 
   const container = { hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.1 } } };
   const item = { hidden: { y: 20, opacity: 0 }, show: { y: 0, opacity: 1 } };
@@ -82,27 +171,64 @@ export default function SchedulePage() {
               <CardHeader className="border-b border-gray-100 pb-4 px-8 pt-8">
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-xl font-bold flex items-center gap-2"><Clock className="w-5 h-5 text-primary" /> 作业截止列表</CardTitle>
-                  <button onClick={() => setShowPendingOnly(!showPendingOnly)} className={`flex items-center gap-2 text-sm font-medium px-4 py-2 rounded-full transition-all ${showPendingOnly ? 'bg-black text-white shadow-md' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>{showPendingOnly ? <X className="w-4 h-4" /> : <Filter className="w-4 h-4" />}{showPendingOnly ? '显示全部' : '只看未完成'}</button>
+                  <div className="flex items-center gap-2">
+                    <button 
+                      onClick={() => setShowOnlyNotOverdue(!showOnlyNotOverdue)} 
+                      className={`flex items-center gap-2 text-sm font-medium px-4 py-2 rounded-full transition-all ${showOnlyNotOverdue ? 'bg-blue-600 text-white shadow-md' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                    >
+                      {showOnlyNotOverdue ? <X className="w-4 h-4" /> : <CalendarIcon className="w-4 h-4" />}
+                      {showOnlyNotOverdue ? '显示全部' : '只看未截止'}
+                    </button>
+                    <button 
+                      onClick={() => setShowPendingOnly(!showPendingOnly)} 
+                      className={`flex items-center gap-2 text-sm font-medium px-4 py-2 rounded-full transition-all ${showPendingOnly ? 'bg-black text-white shadow-md' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                    >
+                      {showPendingOnly ? <X className="w-4 h-4" /> : <Filter className="w-4 h-4" />}
+                      {showPendingOnly ? '显示全部' : '只看未完成'}
+                    </button>
+                  </div>
                 </div>
               </CardHeader>
               <CardContent className="p-0">
                 <div className="overflow-x-auto">
                   <table className="w-full">
-                    <thead className="bg-gray-50/50 text-xs uppercase text-gray-400 font-medium"><tr><th className="px-8 py-4 text-left tracking-wider">状态</th><th className="px-6 py-4 text-left tracking-wider">作业名称</th><th className="px-6 py-4 text-left tracking-wider">课程</th><th className="px-6 py-4 text-left tracking-wider">截止时间</th><th className="px-8 py-4 text-right tracking-wider">前往课程</th></tr></thead>
+                    <thead className="bg-gray-50/50 text-xs uppercase text-gray-400 font-medium"><tr><th className="px-8 py-4 text-left tracking-wider w-32">状态</th><th className="px-6 py-4 text-left tracking-wider">作业名称</th><th className="px-6 py-4 text-left tracking-wider w-56">课程</th><th className="px-6 py-4 text-left tracking-wider w-40">截止时间</th><th className="px-6 py-4 text-right tracking-wider whitespace-nowrap w-28">前往课程</th></tr></thead>
                     <tbody className="divide-y divide-gray-50">
                       {loading ? (
-                        <tr><td colSpan={5} className="py-12 text-center"><div className="flex justify-center items-center gap-2 text-muted-foreground"><Loader2 className="w-5 h-5 animate-spin" /> 加载中...</div></td></tr>
+                        <tr key="loading"><td colSpan={5} className="py-12 text-center"><div className="flex justify-center items-center gap-2 text-muted-foreground"><Loader2 className="w-5 h-5 animate-spin" /> 加载中...</div></td></tr>
                       ) : filteredAssignments.length > 0 ? (
-                        filteredAssignments.map((assign) => (
-                          <tr key={assign.id} className="group hover:bg-gray-50/80 transition-colors">
-                            <td className="px-8 py-5 whitespace-nowrap">{assign.hasSubmittedSubmissions ? <div className="flex items-center gap-2 text-green-600 bg-green-50 px-3 py-1 rounded-full w-fit"><CheckCircle2 className="w-4 h-4" /><span className="text-xs font-bold">已提交</span></div> : <div className="flex items-center gap-2 text-orange-600 bg-orange-50 px-3 py-1 rounded-full w-fit"><Circle className="w-4 h-4" /><span className="text-xs font-bold">进行中</span></div>}</td>
+                        filteredAssignments.map((assign, index) => (
+                          <tr key={`${assign.courseId}-${assign.id}-${index}`} className="group hover:bg-gray-50/80 transition-colors">
+                            <td className="px-8 py-5 whitespace-nowrap">
+                              {assign.submissionStatus === 'graded' ? (
+                                <div className="flex items-center gap-2 text-green-600 bg-green-50 px-3 py-1 rounded-full w-fit">
+                                  <CheckCircle2 className="w-4 h-4" />
+                                  <span className="text-xs font-bold">{assign.score !== null ? `${assign.score}/${assign.pointsPossible || '-'}` : '已评分'}</span>
+                                </div>
+                              ) : assign.hasSubmitted ? (
+                                <div className="flex items-center gap-2 text-blue-600 bg-blue-50 px-3 py-1 rounded-full w-fit">
+                                  <CheckCircle2 className="w-4 h-4" />
+                                  <span className="text-xs font-bold">已提交</span>
+                                </div>
+                              ) : assign.isOverdue ? (
+                                <div className="flex items-center gap-2 text-red-600 bg-red-50 px-3 py-1 rounded-full w-fit">
+                                  <X className="w-4 h-4" />
+                                  <span className="text-xs font-bold">已逾期</span>
+                                </div>
+                              ) : (
+                                <div className="flex items-center gap-2 text-orange-600 bg-orange-50 px-3 py-1 rounded-full w-fit">
+                                  <Circle className="w-4 h-4" />
+                                  <span className="text-xs font-bold">进行中</span>
+                                </div>
+                              )}
+                            </td>
                             <td className="px-6 py-5"><span className="font-bold text-gray-900 group-hover:text-primary transition-colors text-base line-clamp-1" title={assign.name}>{assign.name}</span></td>
-                            <td className="px-6 py-5"><div className="flex items-center gap-3"><div className="w-9 h-9 rounded-xl bg-gray-100 flex items-center justify-center text-xs font-bold text-gray-600 flex-shrink-0">{getCourseCode(assign.courseId).substring(0, 2)}</div><div className="flex flex-col"><span className="text-sm font-bold text-gray-900">{getCourseCode(assign.courseId)}</span><span className="text-xs text-muted-foreground line-clamp-1" title={assign.courseName}>{assign.courseName}</span></div></div></td>
+                            <td className="px-6 py-5"><div className="flex items-center gap-3"><div className={`w-10 h-10 rounded-full ${getCourseColor(assign.courseId).bg} flex items-center justify-center flex-shrink-0`}><BookOpen className={`w-5 h-5 ${getCourseColor(assign.courseId).text}`} /></div><div className="flex flex-col"><span className="text-sm font-bold text-gray-900">{getCourseCode(assign.courseId)}</span><span className="text-xs text-muted-foreground line-clamp-1" title={assign.courseName || getCourseName(assign.courseId)}>{assign.courseName || getCourseName(assign.courseId)}</span></div></div></td>
                             <td className="px-6 py-5 whitespace-nowrap"><div className="flex items-center gap-2 text-sm font-medium text-gray-700"><CalendarIcon className="w-4 h-4 text-gray-400" />{formatDisplayDate(assign.dueAt)}</div></td>
-                            <td className="px-8 py-5 text-right"><Link href={`/dashboard/courses/${assign.courseId}`} title="前往课程详情页" className="inline-flex p-2 rounded-full hover:bg-white hover:shadow-md text-gray-400 hover:text-primary transition-all cursor-pointer"><ArrowUpRight className="w-5 h-5" /></Link></td>
+                            <td className="px-6 py-5 text-right"><Link href={`/dashboard/courses/${assign.courseId}`} title="前往课程详情页" className="inline-flex p-2 rounded-full hover:bg-white hover:shadow-md text-gray-400 hover:text-primary transition-all cursor-pointer"><ArrowUpRight className="w-5 h-5" /></Link></td>
                           </tr>
                         ))
-                      ) : <tr><td colSpan={5} className="text-center py-12 text-muted-foreground">没有符合条件的作业 🎉</td></tr>}
+                      ) : <tr key="empty"><td colSpan={5} className="text-center py-12 text-muted-foreground">没有符合条件的作业 🎉</td></tr>}
                     </tbody>
                   </table>
                 </div>
@@ -120,25 +246,77 @@ export default function SchedulePage() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-6">
+                <div className="text-center mb-4 font-bold text-lg">
+                  {new Date().toLocaleString('zh-CN', { month: 'long', year: 'numeric' })}
+                </div>
                 <div className="grid grid-cols-7 gap-1 text-center text-sm mb-4">
                   {['一', '二', '三', '四', '五', '六', '日'].map(d => <div key={d} className="text-muted-foreground text-xs py-1">{d}</div>)}
-                  {Array.from({ length: 30 }).map((_, i) => {
+                  {Array.from({ length: (new Date(new Date().getFullYear(), new Date().getMonth(), 1).getDay() + 6) % 7 }).map((_, i) => (
+                    <div key={`empty-${i}`} />
+                  ))}
+                  {Array.from({ length: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate() }).map((_, i) => {
                     const day = i + 1;
-                    const isToday = day === new Date().getDate();
-                    return <div key={i} className={`aspect-square flex items-center justify-center rounded-full text-sm cursor-pointer hover:bg-gray-100 ${isToday ? 'bg-black text-white hover:bg-black' : ''}`}>{day}</div>;
+                    const today = new Date();
+                    const isToday = day === today.getDate();
+                    
+                    // Find assignments for this day
+                    const dayAssignments = assignments.filter(a => {
+                      if (!a.dueAt) return false;
+                      const d = new Date(a.dueAt);
+                      return d.getDate() === day && d.getMonth() === today.getMonth() && d.getFullYear() === today.getFullYear();
+                    });
+                    
+                    const hasDeadline = dayAssignments.length > 0;
+                    
+                    return (
+                      <div 
+                        key={i} 
+                        className={`
+                          aspect-square flex flex-col items-center justify-center rounded-full text-sm cursor-pointer hover:bg-gray-100 relative group
+                          ${isToday ? 'bg-black text-white hover:bg-black' : ''}
+                          ${hasDeadline && !isToday ? 'font-bold text-orange-600' : ''}
+                        `}
+                      >
+                        {day}
+                        {hasDeadline && (
+                          <>
+                            <div className={`w-1 h-1 rounded-full mt-0.5 ${isToday ? 'bg-white' : 'bg-orange-500'}`} />
+                            
+                            {/* Tooltip for assignments */}
+                            <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 w-48 bg-white shadow-xl rounded-xl p-3 hidden group-hover:block z-50 border border-gray-100 text-left pointer-events-none">
+                              <div className="text-xs font-bold text-gray-900 mb-2 border-b border-gray-100 pb-2">
+                                {new Date().getMonth() + 1}月{day}日截止 ({dayAssignments.length})
+                              </div>
+                              <div className="space-y-2">
+                                {dayAssignments.map((a, idx) => (
+                                  <div key={`${a.id}-${idx}`} className="text-xs">
+                                    <div className="font-medium text-gray-900 truncate" title={a.name}>{a.name}</div>
+                                    <div className="text-gray-500 text-[10px] truncate">{a.courseName || getCourseName(a.courseId)}</div>
+                                  </div>
+                                ))}
+                              </div>
+                              {/* Arrow */}
+                              <div className="absolute top-full left-1/2 transform -translate-x-1/2 -mt-1 border-4 border-transparent border-t-white"></div>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    );
                   })}
                 </div>
                 <div className="space-y-4 mt-6 pt-6 border-t border-gray-100">
                   <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wider">即将截止 (3天内)</h3>
                   {loading ? <Loader2 className="animate-spin" /> : urgentDeadlines.length > 0 ? (
                     urgentDeadlines.map((item) => (
-                      <div key={item.id} className="flex items-start gap-3 p-3 rounded-2xl bg-gray-50 hover:bg-orange-50 transition-colors group cursor-pointer">
-                        <div className="w-2 h-2 mt-2 rounded-full bg-red-500"></div>
-                        <div>
-                          <p className="text-sm font-bold text-gray-900">{item.name}</p>
-                          <p className="text-xs text-muted-foreground group-hover:text-orange-700">{item.courseName} • {formatDueDate(item.dueAt)}</p>
+                      <Link href={`/dashboard/courses/${item.courseId}`} key={item.id} className="block">
+                        <div className="flex items-start gap-3 p-3 rounded-2xl bg-gray-50 hover:bg-orange-50 transition-colors group cursor-pointer">
+                          <div className="w-2 h-2 mt-2 rounded-full bg-red-500 flex-shrink-0"></div>
+                          <div className="overflow-hidden">
+                            <p className="text-sm font-bold text-gray-900 truncate">{item.name}</p>
+                            <p className="text-xs text-muted-foreground group-hover:text-orange-700 truncate">{item.courseName || getCourseName(item.courseId)} • {formatDueDate(item.dueAt)}</p>
+                          </div>
                         </div>
-                      </div>
+                      </Link>
                     ))
                   ) : <div className="text-center py-4 text-xs text-muted-foreground">暂无紧急作业 🍵</div>}
                 </div>

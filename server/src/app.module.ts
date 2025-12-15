@@ -9,8 +9,8 @@ import { QueueModule } from './queue/queue.module';
 import { UserModule } from './user/user.module';
 import { GroupsModule } from './groups/groups.module';
 import { AssignmentsModule } from './assignments/assignments.module';
+import { AgentModule } from './agent/agent.module';
 import { FilesProcessor } from './files/files.processor';
-import { AgentService } from './agent/agent.service';
 
 @Module({
 	imports: [
@@ -24,8 +24,9 @@ import { AgentService } from './agent/agent.service';
 		UserModule,
 		GroupsModule,
 		AssignmentsModule,
+		AgentModule,
 	],
-	providers: [FilesProcessor,AgentService],
+	providers: [FilesProcessor],
 })
 export class AppModule {}
 

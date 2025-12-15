@@ -18,6 +18,8 @@ export interface User {
   name: string;
   email: string;
   avatar?: string;
+  canvasId?: string;
+  createdAt?: string;
 }
 
 export interface GroupMember {
@@ -72,11 +74,21 @@ export interface Assignment {
   name: string;
   description?: string;
   dueAt: string | null;
+  unlockAt?: string | null;
+  lockAt?: string | null;
   pointsPossible?: number;
-  hasSubmittedSubmissions: boolean;
+  submissionTypes?: string[];
+  hasSubmitted: boolean;
+  submissionStatus?: string;
+  submittedAt?: string | null;
+  grade?: string | null;
+  score?: number | null;
+  isOverdue?: boolean;
+  isUrgent?: boolean;
   htmlUrl?: string;
   courseId: string;
   courseName?: string;
   daysUntilDue?: number;
   hoursUntilDue?: number;
+  allowedExtensions?: string[];
 }

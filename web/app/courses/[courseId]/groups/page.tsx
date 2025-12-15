@@ -1,98 +1,128 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-// import { api } from '@/lib/api'; 接后端
-
-interface Group {
-  id: number;
-  name: string;
-  members: string[];
-  leader: string;
-}
+import { api } from '@/lib/api';
+import type { StudyGroup } from '@/lib/types';
 
 export default function GroupPage() {
   const params = useParams();
-  const courseId = Number(params.courseId);
-  const currentUser = "我";
-
-  /*真实数据
-  const [groups, setGroups] = useState<Group[]>([]);
+  const courseId = String(params.courseId);
+  
+  const [groups, setGroups] = useState<StudyGroup[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [newGroupName, setNewGroupName] = useState('');
+  const [newGroupDescription, setNewGroupDescription] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string>('');
 
+  // 加载课程名称
+  const [courseName, setCourseName] = useState('');
+
+  // 加载小组列表 - 使用 getCourseGroups 显示所有学生的小组
   useEffect(() => {
     const fetchGroups = async () => {
       try {
-        // const data = await api.getCourseGroups(courseId);
-        // setGroups(data);
+        setLoading(true);
+        setError('');
+        const data = await api.getCourseGroups(courseId);  // 🔑 关键：显示课程所有小组
+        setGroups(data);
       } catch (err) {
         console.error("加载小组失败", err);
+        setError('加载小组失败，请刷新重试');
+      } finally {
+        setLoading(false);
       }
     };
     fetchGroups();
-    */
+  }, [courseId]);
 
-  //模拟小组数据（假数据）
-  const [groups, setGroups] = useState<Group[]>([
-    { id: 1, name: '第一组：EDG', members: ['张磊', '李一凡'], leader: '张磊' },
-    { id: 2, name: '第二组：TE', members: ['张桐瑞轩'], leader: '张桐瑞轩'},
-  ]);
+  // 获取当前用户信息
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const user = await api.getMe();
+        setCurrentUserId(user.id);
+      } catch (err) {
+        console.error("获取用户信息失败", err);
+      }
+    };
+    fetchUser();
+  }, []);
 
-  const [newGroupName, setNewGroupName] = useState('');
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  // 获取课程名称
+  useEffect(() => {
+    const fetchCourse = async () => {
+      try {
+        const courses = await api.getCourses();
+        const course = courses.find(c => String(c.id) === courseId);
+        if (course) {
+          setCourseName(course.name);
+        }
+      } catch (err) {
+        console.error("获取课程信息失败", err);
+      }
+    };
+    fetchCourse();
+  }, [courseId]);
 
-  //加入小组
-  const handleJoinGroup = (groupName: string, groupId: number) => {
-    const alreadyInGroup = groups.some(g => g.members.includes(currentUser));
+  // 加入小组
+  const handleJoinGroup = async (groupName: string, groupId: string) => {
+    const alreadyInGroup = groups.some(g => 
+      g.members.some(m => m.userId === currentUserId) && g.id !== groupId
+    );
+    
     if (alreadyInGroup) {
-      alert("你已经加入了一个小组，请先退出或解散当前小组！");
+      alert("你已经加入了一个小组，请先退出当前小组！");
       return;
     }
 
-    if (!confirm(`确认要加入小组“${groupName}”吗？`)) {
-        return;
-      }
+    if (!confirm(`确认要加入小组"${groupName}"吗？`)) {
+      return;
+    }
 
-    /* 后端接口: await api.joinGroup(groupId); */
-
-    //Mock
-    const updatedGroups = groups.map(group => {
-        if (group.id === groupId) {
-          return { ...group, members: [...group.members, currentUser] };
-        }
-        return group;
-      });
-      setGroups(updatedGroups);
+    try {
+      await api.joinGroup(groupId);
+      const data = await api.getCourseGroups(courseId);
+      setGroups(data);
+      alert('成功加入小组！');
+    } catch (err) {
+      console.error("加入小组失败", err);
+      alert('加入小组失败，请重试');
+    }
   };
 
-  //退出小组
-  const handleQuitGroup = (groupName: string, groupId: number) => {
-    /* 后端接口: await api.quitGroup(groupId); */
+  // 退出小组
+  const handleQuitGroup = async (groupName: string, groupId: string) => {
+    if (!confirm(`确认要退出小组"${groupName}"吗？`)) {
+      return;
+    }
 
-    if (!confirm(`确认要退出小组“${groupName}”吗？`)) {
-        return;
-      }
-
-    //Mock
-    const updatedGroups = groups.map(group => {
-        if (group.id === groupId) {
-          return { ...group, members: group.members.filter(m => m !== currentUser) };
-        }
-        return group;
-      });
-      setGroups(updatedGroups);
+    try {
+      await api.leaveGroup(groupId);
+      const data = await api.getCourseGroups(courseId);
+      setGroups(data);
+      alert('成功退出小组！');
+    } catch (err) {
+      console.error("退出小组失败", err);
+      alert('退出小组失败，请重试');
+    }
   };
 
-  //解散小组
-  const handleDisbandGroup = (groupId: number) => {
+  // 解散小组
+  const handleDisbandGroup = async (groupId: string) => {
     if (!confirm("确定要解散这个小组吗？此操作不可恢复。")) return;
 
-    /* 后端接口: await api.deleteGroup(groupId); */
-
-    //Mock
-    const updatedGroups = groups.filter(group => group.id !== groupId);
-    setGroups(updatedGroups);
+    try {
+      await api.disbandGroup(groupId);
+      const data = await api.getCourseGroups(courseId);
+      setGroups(data);
+      alert('小组已解散！');
+    } catch (err) {
+      console.error("解散小组失败", err);
+      alert('解散小组失败，请重试');
+    }
   };
 
   //点击创建按钮
@@ -104,21 +134,27 @@ export default function GroupPage() {
     setIsModalOpen(true); // 打开弹窗
   };
 
-  //确认创建
-  const confirmCreateGroup = () => {
-    /* 后端接口: await api.createGroup(courseId, newGroupName); */
-
-    //Mock
-    const newGroup: Group = {
-      id: Date.now(),
-      name: newGroupName,
-      members: [currentUser],
-      leader: currentUser
-    };
-
-    setGroups([...groups, newGroup]);
-    setNewGroupName('');
-    setIsModalOpen(false);
+  // 确认创建
+  const confirmCreateGroup = async () => {
+    try {
+      await api.createGroup({
+        courseId,
+        courseName: courseName || `课程 ${courseId}`,
+        name: newGroupName,
+        description: newGroupDescription,
+      });
+      
+      const data = await api.getCourseGroups(courseId);
+      setGroups(data);
+      
+      setNewGroupName('');
+      setNewGroupDescription('');
+      setIsModalOpen(false);
+      alert('小组创建成功！');
+    } catch (err) {
+      console.error("创建小组失败", err);
+      alert('创建小组失败，请重试');
+    }
   };
 
   return (
@@ -132,30 +168,42 @@ export default function GroupPage() {
       </div>
 
       {/*创建小组区域*/}
-      <div className="bg-white p-6 rounded-lg shadow-sm border mb-8 flex gap-4 items-end">
-        <div className="flex-1">
-          <label className="block text-sm font-medium text-gray-700 mb-1">新建小组名称</label>
-          <input 
-            type="text" 
-            value={newGroupName}
-            onChange={(e) => setNewGroupName(e.target.value)}
-            placeholder="例如：EDG"
-            className="w-full border rounded px-3 py-2"
-          />
+      <div className="bg-white p-6 rounded-lg shadow-sm border mb-8">
+        <div className="flex gap-4 items-end">
+          <div className="flex-1">
+            <label className="block text-sm font-medium text-gray-700 mb-1">新建小组名称</label>
+            <input 
+              type="text" 
+              value={newGroupName}
+              onChange={(e) => setNewGroupName(e.target.value)}
+              placeholder="例如：EDG"
+              className="w-full border rounded px-3 py-2"
+            />
+          </div>
+          <div className="flex-1">
+            <label className="block text-sm font-medium text-gray-700 mb-1">小组描述（可选）</label>
+            <input 
+              type="text" 
+              value={newGroupDescription}
+              onChange={(e) => setNewGroupDescription(e.target.value)}
+              placeholder="例如：专注于数据分析"
+              className="w-full border rounded px-3 py-2"
+            />
+          </div>
+          <button 
+            onClick={handleCreateClick}
+            className="bg-indigo-600 text-white px-6 py-2 rounded hover:bg-indigo-700 h-10 whitespace-nowrap"
+          >
+            创建并加入
+          </button>
         </div>
-        <button 
-          onClick={handleCreateClick}
-          className="bg-indigo-600 text-white px-6 py-2 rounded hover:bg-indigo-700 h-10"
-        >
-          创建并加入
-        </button>
       </div>
 
-      {/*小组列表展示*/}
+      {/* 小组列表展示 */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {groups.map(group => {
-          const isMember = group.members.includes(currentUser);
-          const isLeader = group.leader === currentUser;
+          const isMember = group.members.some(m => m.userId === currentUserId);
+          const isCreator = group.creator.id === currentUserId;
           
           return (
             <div key={group.id} className="border rounded-lg p-6 bg-white hover:shadow-md transition relative">
@@ -163,10 +211,10 @@ export default function GroupPage() {
                 <h3 className="text-lg font-bold text-gray-900">{group.name}</h3>
                 <div className="flex items-center gap-2">
                   <span className="bg-gray-100 text-gray-600 text-xs px-2 py-1 rounded-full">
-                    {group.members.length} 人
+                    {group.memberCount} 人
                   </span>
                   
-                  {isLeader && (
+                  {isCreator && (
                     <button 
                       onClick={() => handleDisbandGroup(group.id)}
                       className="text-xs text-red-500 hover:text-red-700 underline font-medium"
@@ -178,22 +226,29 @@ export default function GroupPage() {
               </div>
               
               <div className="mb-6">
-                <p className="text-xs text-gray-500 mb-1">小组成员：</p>
-                <p className="text-sm text-gray-800">
-                  {group.members.length > 0 ? (
-                    group.members.map(member => 
-                      member === group.leader ? `${member}(组长)` : member
-                    ).join('，') 
-                  ) : (
-                    <span className="text-gray-400">暂无成员</span>
-                  )}
-                </p>
+                <p className="text-xs text-gray-500 mb-2">组长: {group.creator.name || group.creator.email}</p>
+                <p className="text-xs text-gray-500 mb-1">成员:</p>
+                <div className="flex flex-wrap gap-2">
+                  {group.members.map(member => (
+                    <span 
+                      key={member.id} 
+                      className={`text-xs px-2 py-1 rounded-full ${
+                        member.role === 'creator' 
+                          ? 'bg-indigo-100 text-indigo-700' 
+                          : 'bg-gray-100 text-gray-700'
+                      }`}
+                    >
+                      {member.user.name || member.user.email}
+                      {member.role === 'creator' && ' 👑'}
+                    </span>
+                  ))}
+                </div>
               </div>
 
-              {/*底部按钮：加入/退出*/}
+              {/* 底部按钮：加入/退出 */}
               <div className="mt-auto">
                 {isMember ? (
-                  isLeader ? (
+                  isCreator ? (
                     <button disabled className="w-full bg-gray-100 text-gray-400 py-2 rounded cursor-not-allowed text-sm">
                       你是组长 (请解散以移除)
                     </button>
@@ -227,6 +282,12 @@ export default function GroupPage() {
             <p className="text-gray-600 mb-6">
               小组名称：<span className="font-semibold text-indigo-600">{newGroupName}</span>
               <br/>
+              {newGroupDescription && (
+                <>
+                  描述：<span className="text-sm text-gray-700">{newGroupDescription}</span>
+                  <br/>
+                </>
+              )}
               <span className="text-sm text-gray-500">创建后你将自动成为<span className="font-bold text-indigo-600">组长</span>。</span>
             </p>
             <div className="flex justify-end gap-3">

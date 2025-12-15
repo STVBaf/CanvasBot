@@ -2,10 +2,10 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { BookOpen, Users, BrainCircuit, ArrowRight, Calendar as CalendarIcon, Loader2 } from 'lucide-react';
+import { BookOpen, Users, BrainCircuit, ArrowRight, Calendar as CalendarIcon, Loader2, Clock } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { api } from '@/lib/api';
-import type { Course, StudyGroup, Assignment } from '@/lib/types';
+import type { Course, StudyGroup, Assignment, User } from '@/lib/types';
 
 // Helper to assign colors to courses
 const getCourseColor = (index: number) => {
@@ -14,23 +14,91 @@ const getCourseColor = (index: number) => {
 };
 
 export default function DashboardPage() {
+  const [user, setUser] = useState<User | null>(null);
   const [courses, setCourses] = useState<Course[]>([]);
   const [myGroups, setMyGroups] = useState<StudyGroup[]>([]);
   const [urgentDeadlines, setUrgentDeadlines] = useState<Assignment[]>([]);
+  const [assignments, setAssignments] = useState<Assignment[]>([]);
+  const [todayAssignments, setTodayAssignments] = useState<Assignment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState<string>('');
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const [coursesData, groupsData, urgentData] = await Promise.all([
-          api.getCourses(),
-          api.getGroups(),
-          api.getUrgentAssignments()
-        ]);
-        setCourses(coursesData);
+        console.log('[Dashboard] Fetching data...');
+        
+        // Fetch user info
+        const userData = await api.getMe();
+        setUser(userData);
+        
+        // Fetch courses first
+        const coursesData = await api.getCourses();
+        console.log('[Dashboard] Courses:', coursesData);
+        setCourses(Array.isArray(coursesData) ? coursesData : []);
+        
+        // Fetch groups
+        const groupsData = await api.getGroups();
         setMyGroups(groupsData);
-        setUrgentDeadlines(urgentData);
+        
+        if (!Array.isArray(coursesData) || coursesData.length === 0) {
+          setAssignments([]);
+          setUrgentDeadlines([]);
+          setTodayAssignments([]);
+          setLoading(false);
+          return;
+        }
+        
+        // Fetch assignments for each course
+        const assignmentPromises = coursesData.map(course => 
+          api.getCourseAssignments(course.id).then(assignments => 
+            assignments.map(a => ({
+              ...a,
+              courseId: String(course.id),
+              courseName: a.courseName || course.name
+            }))
+          ).catch(error => {
+            console.error(`[Dashboard] Failed to fetch assignments for course ${course.id}:`, error);
+            return [];
+          })
+        );
+        
+        const assignmentArrays = await Promise.all(assignmentPromises);
+        const allAssignments = assignmentArrays.flat();
+        
+        // Sort assignments by due date
+        const sortedAssignments = allAssignments
+          .filter(a => a.dueAt)
+          .sort((a, b) => {
+            const dateA = new Date(a.dueAt!).getTime();
+            const dateB = new Date(b.dueAt!).getTime();
+            return dateA - dateB;
+          });
+        
+        setAssignments(sortedAssignments);
+        
+        // Extract urgent assignments (3 days or less)
+        const now = new Date();
+        const threeDaysLater = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
+        const urgent = sortedAssignments.filter(a => {
+          if (!a.dueAt || a.hasSubmitted) return false;
+          const dueDate = new Date(a.dueAt);
+          return dueDate >= now && dueDate <= threeDaysLater;
+        });
+        setUrgentDeadlines(urgent);
+        
+        // Extract today's assignments
+        const today = sortedAssignments.filter(a => {
+          if (!a.dueAt || a.hasSubmitted) return false;
+          const dueDate = new Date(a.dueAt);
+          return dueDate.toDateString() === now.toDateString();
+        });
+        setTodayAssignments(today);
+        
+        console.log('[Dashboard] Total assignments:', sortedAssignments.length);
+        console.log('[Dashboard] Urgent assignments:', urgent.length);
+        console.log('[Dashboard] Today assignments:', today.length);
       } catch (error) {
         console.error('Failed to fetch dashboard data:', error);
       } finally {
@@ -59,11 +127,37 @@ export default function DashboardPage() {
     return null;
   };
   
-  const formatDueDate = (dateString: string | null) => {
+  const formatDueDate = (dateString: string | null | undefined) => {
     if (!dateString) return '无截止日期';
     const date = new Date(dateString);
     return date.toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
   };
+  
+  const getCourseName = (courseId?: string | number) => {
+    if (!courseId) return '未知课程';
+    const course = courses.find(c => String(c.id) === String(courseId));
+    return course ? course.name : '未知课程';
+  };
+  
+  const filteredCourses = courses.filter(course => {
+    const searchValue = searchQuery.trim();
+    if (!searchValue) return true;
+    
+    const courseName = (course.name || '');
+    const courseCode = (course.course_code || '');
+    
+    return courseName.includes(searchValue) || courseCode.includes(searchValue);
+  });
+  
+  const filteredAssignments = assignments.filter(assign => {
+    const searchValue = searchQuery.trim();
+    if (!searchValue) return true;
+    
+    const assignName = (assign.name || '');
+    const courseName = (assign.courseName || '');
+    
+    return assignName.includes(searchValue) || courseName.includes(searchValue);
+  });
 
   const container = { hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.1 } } };
   const item = { hidden: { y: 20, opacity: 0 }, show: { y: 0, opacity: 1 } };
@@ -73,27 +167,89 @@ export default function DashboardPage() {
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">你好, 同学! 👋</h1>
+          <h1 className="text-3xl font-bold text-foreground">你好，{user?.name || '同学'}！</h1>
           <p className="text-muted-foreground mt-1">准备好开始今天的学习了吗？</p>
         </div>
         <div className="flex gap-4">
-          <div className="relative"><input type="text" placeholder="搜索课程或资料..." className="pl-10 pr-4 py-3 rounded-full bg-white border-none shadow-sm w-64 focus:outline-none focus:ring-2 focus:ring-primary/20" /><svg className="w-5 h-5 text-gray-400 absolute left-3 top-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg></div>
+          <div className="relative">
+            <input 
+              type="text" 
+              placeholder="搜索课程或资料..." 
+              value={searchQuery || ''}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10 pr-4 py-3 rounded-full bg-white border-none shadow-sm w-64 focus:outline-none focus:ring-2 focus:ring-primary/20" 
+            />
+            <svg className="w-5 h-5 text-gray-400 absolute left-3 top-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+            </svg>
+            {searchQuery && (
+              <button 
+                onClick={() => setSearchQuery('')}
+                className="absolute right-3 top-3.5 text-gray-400 hover:text-gray-600"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            )}
+          </div>
           <button className="bg-primary text-primary-foreground px-6 py-3 rounded-full font-medium hover:opacity-90 transition-opacity">同步数据</button>
         </div>
       </div>
 
+      {searchQuery && (
+        <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 flex items-center justify-between">
+          <p className="text-sm text-blue-800">
+            搜索 "<span className="font-bold">{searchQuery}</span>" 找到 <span className="font-bold">{filteredCourses.length}</span> 门课程 和 <span className="font-bold">{filteredAssignments.length}</span> 个作业
+          </p>
+          <button 
+            onClick={() => setSearchQuery('')}
+            className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+          >
+            清除搜索
+          </button>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-8">
           <motion.div variants={item}>
-            <Card className="bg-[#e8e6df] border-none overflow-hidden relative">
+            <Card className="bg-[#e8e6df] border-none overflow-hidden relative rounded-[2rem]">
               <CardContent className="p-8 flex flex-col md:flex-row items-center justify-between relative z-10">
                 <div className="space-y-4 max-w-md">
                   <div className="inline-block px-3 py-1 rounded-full bg-black/5 text-xs font-bold uppercase tracking-wider">今日概览</div>
-                  <h2 className="text-3xl font-bold leading-tight">{loading ? '正在加载...' : (<>你今天有 <span className="text-orange-600">{Array.isArray(urgentDeadlines) ? urgentDeadlines.length : 0} 个待办事项</span> 需要完成</>)}</h2>
+                  <h2 className="text-3xl font-bold leading-tight">
+                    {loading ? '正在加载...' : (
+                      <>
+                        你今天有 <span className="text-orange-600">{todayAssignments.length} 个作业</span>
+                        {todayAssignments.length > 0 ? '需要完成' : '，享受轻松的一天'}
+                      </>
+                    )}
+                  </h2>
                   <div className="flex gap-6 pt-2">
-                    <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-yellow-400"></div><span className="text-sm font-medium">待处理</span></div>
-                    <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-green-500"></div><span className="text-sm font-medium">已完成</span></div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 rounded-full bg-orange-400"></div>
+                      <span className="text-sm font-medium">今日到期: {todayAssignments.length}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 rounded-full bg-red-500"></div>
+                      <span className="text-sm font-medium">即将截止: {urgentDeadlines.length}</span>
+                    </div>
                   </div>
+                  {todayAssignments.length > 0 && (
+                    <div className="mt-4 space-y-2 bg-white/50 p-4 rounded-xl">
+                      <p className="text-xs font-bold text-gray-600 uppercase">今日作业清单</p>
+                      {todayAssignments.slice(0, 3).map((assign, idx) => (
+                        <div key={idx} className="flex items-center gap-2 text-sm">
+                          <div className="w-1.5 h-1.5 rounded-full bg-orange-500"></div>
+                          <span className="font-medium truncate">{assign.name}</span>
+                        </div>
+                      ))}
+                      {todayAssignments.length > 3 && (
+                        <p className="text-xs text-gray-500 pl-3.5">还有 {todayAssignments.length - 3} 个...</p>
+                      )}
+                    </div>
+                  )}
                 </div>
                 <div className="absolute right-0 top-0 w-64 h-64 bg-orange-400/20 rounded-full blur-3xl -mr-16 -mt-16"></div>
               </CardContent>
@@ -117,7 +273,7 @@ export default function DashboardPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {courses.slice(0, 4).map((course, index) => (
+            {(searchQuery ? filteredCourses : courses.slice(0, 4)).map((course, index) => (
               <Link href={`/dashboard/courses/${course.id}`} key={course.id}>
                 <Card className="group hover:shadow-lg transition-all duration-300 cursor-pointer bg-white border-none rounded-[2rem] relative overflow-hidden h-full">
                   <CardContent className="p-8">
@@ -173,18 +329,101 @@ export default function DashboardPage() {
         </div>
         <div className="space-y-8">
           <motion.div variants={item}>
-            <Card className="bg-white"><CardHeader className="pb-2"><CardTitle className="text-lg flex items-center gap-2"><CalendarIcon className="w-5 h-5" /> 日程安排</CardTitle></CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-7 gap-1 text-center text-sm mb-4">{['一', '二', '三', '四', '五', '六', '日'].map(d => <div key={d} className="text-muted-foreground text-xs py-1">{d}</div>)}{Array.from({ length: 30 }).map((_, i) => { const day = i + 1; const isToday = day === new Date().getDate(); return <div key={i} className={`aspect-square flex items-center justify-center rounded-full text-sm cursor-pointer hover:bg-gray-100 ${isToday ? 'bg-black text-white hover:bg-black' : ''}`}>{day}</div>; })}</div>
-                <div className="space-y-4 mt-6">
-                  <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wider">即将截止</h3>
-                  {loading ? <Loader2 className="animate-spin" /> : urgentDeadlines.length > 0 ? (urgentDeadlines.map((item) => (<div key={item.id} className="flex items-start gap-3 p-3 rounded-2xl bg-gray-50 hover:bg-orange-50 transition-colors group"><div className="w-2 h-2 mt-2 rounded-full bg-red-500"></div><div><p className="text-sm font-bold text-gray-900">{item.name}</p><p className="text-xs text-muted-foreground group-hover:text-orange-700">{item.courseName} • {formatDueDate(item.dueAt)}</p></div></div>))) : <div className="text-center py-4 text-xs text-muted-foreground">暂无紧急任务 🎉</div>}
+            <Card className="bg-white sticky top-8 rounded-[2rem] border-none shadow-sm">
+              <CardHeader className="pb-2 pt-6 px-6">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <CalendarIcon className="w-5 h-5" /> 日历视图
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-6">
+                <div className="text-center mb-4 font-bold text-lg">
+                  {new Date().toLocaleString('zh-CN', { month: 'long', year: 'numeric' })}
+                </div>
+                <div className="grid grid-cols-7 gap-1 text-center text-sm mb-4">
+                  {['一', '二', '三', '四', '五', '六', '日'].map(d => <div key={d} className="text-muted-foreground text-xs py-1">{d}</div>)}
+                  {Array.from({ length: (new Date(new Date().getFullYear(), new Date().getMonth(), 1).getDay() + 6) % 7 }).map((_, i) => (
+                    <div key={`empty-${i}`} />
+                  ))}
+                  {Array.from({ length: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate() }).map((_, i) => {
+                    const day = i + 1;
+                    const today = new Date();
+                    const isToday = day === today.getDate();
+                    
+                    // Find assignments for this day
+                    const dayAssignments = assignments.filter(a => {
+                      if (!a.dueAt) return false;
+                      const d = new Date(a.dueAt);
+                      return d.getDate() === day && d.getMonth() === today.getMonth() && d.getFullYear() === today.getFullYear();
+                    });
+                    
+                    const hasDeadline = dayAssignments.length > 0;
+                    
+                    return (
+                      <div 
+                        key={i} 
+                        className={`
+                          aspect-square flex flex-col items-center justify-center rounded-full text-sm cursor-pointer hover:bg-gray-100 relative group
+                          ${isToday ? 'bg-black text-white hover:bg-black' : ''}
+                          ${hasDeadline && !isToday ? 'font-bold text-orange-600' : ''}
+                        `}
+                      >
+                        {day}
+                        {hasDeadline && (
+                          <>
+                            <div className={`w-1 h-1 rounded-full mt-0.5 ${isToday ? 'bg-white' : 'bg-orange-500'}`} />
+                            
+                            {/* Tooltip for assignments */}
+                            <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 w-48 bg-white shadow-xl rounded-xl p-3 hidden group-hover:block z-50 border border-gray-100 text-left pointer-events-none">
+                              <div className="text-xs font-bold text-gray-900 mb-2 border-b border-gray-100 pb-2">
+                                {new Date().getMonth() + 1}月{day}日截止 ({dayAssignments.length})
+                              </div>
+                              <div className="space-y-2">
+                                {dayAssignments.map((a, idx) => (
+                                  <div key={`${a.id}-${idx}`} className="text-xs">
+                                    <div className="font-medium text-gray-900 truncate" title={a.name}>{a.name}</div>
+                                    <div className="text-gray-500 text-[10px] truncate">{a.courseName || getCourseName(a.courseId)}</div>
+                                  </div>
+                                ))}
+                              </div>
+                              {/* Arrow */}
+                              <div className="absolute top-full left-1/2 transform -translate-x-1/2 -mt-1 border-4 border-transparent border-t-white"></div>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="space-y-4 mt-6 pt-6 border-t border-gray-100">
+                  <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wider">即将截止 (3天内)</h3>
+                  {loading ? <Loader2 className="animate-spin" /> : urgentDeadlines.length > 0 ? (
+                    urgentDeadlines.map((item) => (
+                      <Link href={`/dashboard/courses/${item.courseId}`} key={item.id} className="block">
+                        <div className="flex items-start gap-3 p-3 rounded-2xl bg-gray-50 hover:bg-orange-50 transition-colors group cursor-pointer">
+                          <div className="w-2 h-2 mt-2 rounded-full bg-red-500 flex-shrink-0"></div>
+                          <div className="overflow-hidden">
+                            <p className="text-sm font-bold text-gray-900 truncate">{item.name}</p>
+                            <p className="text-xs text-muted-foreground group-hover:text-orange-700 truncate">{item.courseName || getCourseName(item.courseId)} • {formatDueDate(item.dueAt)}</p>
+                          </div>
+                        </div>
+                      </Link>
+                    ))
+                  ) : <div className="text-center py-4 text-xs text-muted-foreground">暂无紧急作业 🍵</div>}
                 </div>
               </CardContent>
             </Card>
           </motion.div>
           <motion.div variants={item}>
-             <Card className="bg-[#2a2a2a] text-white overflow-hidden"><CardContent className="p-6 relative"><h3 className="text-lg font-bold mb-2">专注模式</h3><p className="text-gray-400 text-sm mb-4">开启番茄钟，专注于当前的学习任务。</p><button className="w-full py-2 bg-white text-black rounded-xl font-bold text-sm hover:bg-gray-200 transition-colors">开始专注</button><div className="absolute -right-4 -bottom-4 w-24 h-24 bg-white/10 rounded-full blur-2xl"></div></CardContent></Card>
+             <Card className="bg-[#2a2a2a] text-white overflow-hidden">
+                <CardContent className="p-6 relative">
+                  <h3 className="text-lg font-bold mb-2">专注模式</h3>
+                  <p className="text-gray-400 text-sm mb-4">开启番茄钟，专注于当前的学习任务。</p>
+                  <Link href="/dashboard/focus" className="block w-full py-2 bg-white text-black rounded-xl font-bold text-sm hover:bg-gray-200 transition-colors text-center">
+                    开始专注
+                  </Link>
+                  <div className="absolute -right-4 -bottom-4 w-24 h-24 bg-white/10 rounded-full blur-2xl"></div>
+                </CardContent>
+             </Card>
           </motion.div>
         </div>
       </div>

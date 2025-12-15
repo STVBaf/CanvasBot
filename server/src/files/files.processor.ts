@@ -88,19 +88,55 @@ export class FilesProcessor implements OnModuleInit {
     if (!contentType) return '';
     
     const mimeMap: Record<string, string> = {
+      // 文档
       'application/pdf': '.pdf',
+      'application/msword': '.doc',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document': '.docx',
+      'application/rtf': '.rtf',
+      'text/plain': '.txt',
+      'text/markdown': '.md',
+      'text/html': '.html',
+      'application/json': '.json',
+      'application/xml': '.xml',
+      'text/xml': '.xml',
+      'text/csv': '.csv',
+      
+      // 表格
+      'application/vnd.ms-excel': '.xls',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': '.xlsx',
+      'application/vnd.oasis.opendocument.spreadsheet': '.ods',
+      
+      // 演示文稿
+      'application/vnd.ms-powerpoint': '.ppt',
+      'application/vnd.openxmlformats-officedocument.presentationml.presentation': '.pptx',
+      'application/vnd.oasis.opendocument.presentation': '.odp',
+      
+      // 图片
       'image/jpeg': '.jpg',
       'image/png': '.png',
       'image/gif': '.gif',
-      'text/plain': '.txt',
-      'application/msword': '.doc',
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document': '.docx',
-      'application/vnd.ms-excel': '.xls',
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': '.xlsx',
-      'application/vnd.ms-powerpoint': '.ppt',
-      'application/vnd.openxmlformats-officedocument.presentationml.presentation': '.pptx',
+      'image/webp': '.webp',
+      'image/svg+xml': '.svg',
+      'image/bmp': '.bmp',
+      
+      // 压缩文件
       'application/zip': '.zip',
       'application/x-rar-compressed': '.rar',
+      'application/x-7z-compressed': '.7z',
+      'application/gzip': '.gz',
+      'application/x-tar': '.tar',
+      
+      // 视频
+      'video/mp4': '.mp4',
+      'video/mpeg': '.mpeg',
+      'video/quicktime': '.mov',
+      'video/x-msvideo': '.avi',
+      
+      // 音频
+      'audio/mpeg': '.mp3',
+      'audio/wav': '.wav',
+      'audio/ogg': '.ogg',
+      'audio/aac': '.aac',
     };
     
     return mimeMap[contentType] || '';
