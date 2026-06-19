@@ -20,8 +20,12 @@ export default function Home() {
   return (
     <main className="flex min-h-screen items-center justify-center bg-background">
       <div className="text-center space-y-6 w-96 p-8 bg-white rounded-3xl shadow-sm">
-        <div className="w-16 h-16 bg-primary rounded-2xl flex items-center justify-center text-white font-bold text-2xl mx-auto mb-4">
-          C
+        <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 overflow-hidden">
+          <img 
+            src="/icon/CanvasEduBotIcon.png" 
+            alt="Canvas Logo" 
+            className="w-full h-full object-cover"
+          />
         </div>
         <h1 className="text-3xl font-bold text-foreground">CanvasBot</h1>
         <p className="text-muted-foreground">一键同步 Canvas 课程与作业</p>

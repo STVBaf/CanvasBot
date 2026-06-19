@@ -42,7 +42,10 @@ export default function GroupsPage() {
     }
   };
 
-  const joinedCourseIds = groups.map(g => g.courseId);
+  // 🔑 修复：只统计用户已加入的小组的课程ID
+  const joinedCourseIds = groups
+    .filter(g => g.isMember || g.isCreator)  // 只过滤已加入的小组
+    .map(g => g.courseId);
 
   const openCreateModal = () => {
     setNewGroupName('');

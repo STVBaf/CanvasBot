@@ -68,8 +68,12 @@ export function Sidebar() {
     >
       {/* Logo Area */}
       <div className="flex items-center mb-12 px-1 overflow-hidden whitespace-nowrap">
-        <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center text-white font-bold text-xl flex-shrink-0 shadow-lg shadow-primary/30">
-          C
+        <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 overflow-hidden">
+          <img 
+            src="/icon/CanvasEduBotIcon.png" 
+            alt="Canvas Logo" 
+            className="w-full h-full object-cover"
+          />
         </div>
         <span className={cn(
           "ml-3 text-xl font-bold transition-opacity duration-300",
