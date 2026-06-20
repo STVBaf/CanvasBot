@@ -25,31 +25,82 @@ export class FilesService {
       throw new Error('无法获取 Canvas 用户 ID');
     }
     
-    // 2. Find or create user by canvasId
-    let user = await this.prisma.user.findFirst({ where: { canvasId } });
+    // 2. Find or create user by canvasId, falling back to email for old rows.
+    const email = profile.primary_email || profile.login_id || `canvas_user_${canvasId}@example.com`;
+    let user = await this.prisma.user.findUnique({ where: { canvasId } });
     if (!user) {
-      const email = profile.primary_email || profile.login_id || `canvas_user_${canvasId}@example.com`;
+      user = await this.prisma.user.findUnique({ where: { email } });
+    }
+
+    if (!user) {
       user = await this.prisma.user.create({
         data: {
           email,
           name: profile.name ?? null,
           canvasId,
+          avatar: profile.avatar_url ?? null,
+        },
+      });
+    } else {
+      user = await this.prisma.user.update({
+        where: { id: user.id },
+        data: {
+          name: profile.name ?? user.name,
+          avatar: profile.avatar_url ?? user.avatar,
+          canvasId: user.canvasId ?? canvasId,
         },
       });
     }
 
+    await this.storeCanvasToken(user.id, canvasId, accessToken);
+
     // 3. Sync
     await this.performSync(user.id, accessToken, courseId);
+  }
+
+  private async storeCanvasToken(userId: string, canvasId: string, accessToken: string) {
+    const existingToken = await this.prisma.token.findFirst({
+      where: { userId, provider: 'canvas' },
+    });
+
+    if (existingToken) {
+      await this.prisma.token.update({
+        where: { id: existingToken.id },
+        data: {
+          accessToken,
+          providerUserId: canvasId,
+          expiresAt: null,
+          refreshToken: null,
+        },
+      });
+      return;
+    }
+
+    await this.prisma.token.create({
+      data: {
+        userId,
+        provider: 'canvas',
+        providerUserId: canvasId,
+        accessToken,
+        expiresAt: null,
+        refreshToken: null,
+      },
+    });
   }
 
   private async performSync(userId: string, accessToken: string, courseId: string) {
     const files = await this.canvas.getCourseFiles(accessToken, courseId);
 
     for (const f of files) {
-      const fileMeta = await this.prisma.fileMeta.upsert({
-        where: { canvasFileId: String(f.id) },
+      const canvasFileId = String(f.id);
+      await this.prisma.fileMeta.upsert({
+        where: {
+          userId_canvasFileId: {
+            userId,
+            canvasFileId,
+          },
+        },
         update: {
-          userId,
           fileName: f.display_name ?? f.filename,
           downloadUrl: f.url,
           courseId: String(courseId),
@@ -59,7 +110,7 @@ export class FilesService {
         create: {
           userId,
           courseId: String(courseId),
-          canvasFileId: String(f.id),
+          canvasFileId,
           fileName: f.display_name ?? f.filename,
           downloadUrl: f.url,
           fileSize: f.size ?? null,
@@ -68,7 +119,14 @@ export class FilesService {
       });
 
       await this.fileQueue.add('download', {
-        fileMetaId: fileMeta.id,
+        userId,
+        canvasFileId,
+      }, {
+        jobId: `file-download:${userId}:${canvasFileId}`,
+        attempts: 3,
+        backoff: { type: 'exponential', delay: 5000 },
+        removeOnComplete: true,
+        removeOnFail: 1000,
       });
     }
   }
@@ -126,7 +184,7 @@ export class FilesService {
       return [];
     }
     
-    const user = await this.prisma.user.findFirst({ where: { canvasId } });
+    const user = await this.prisma.user.findUnique({ where: { canvasId } });
     if (!user) {
       return [];
     }
@@ -169,7 +227,7 @@ export class FilesService {
       return null;
     }
     
-    const user = await this.prisma.user.findFirst({ where: { canvasId } });
+    const user = await this.prisma.user.findUnique({ where: { canvasId } });
     if (!user) {
       return null;
     }

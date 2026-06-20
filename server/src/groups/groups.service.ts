@@ -20,14 +20,20 @@ export class GroupsService {
       throw new Error('无法获取 Canvas 用户 ID');
     }
     
-    // 优先通过 canvasId 查找用户
-    let user = await this.prisma.user.findFirst({ 
-      where: { canvasId } 
+    // 优先通过 canvasId 查找用户，其次按 email 兼容旧数据
+    const email = profile.primary_email || profile.login_id || `canvas_user_${canvasId}@example.com`;
+    let user = await this.prisma.user.findUnique({
+      where: { canvasId }
     });
+
+    if (!user) {
+      user = await this.prisma.user.findUnique({
+        where: { email }
+      });
+    }
     
     if (!user) {
       // 如果找不到，创建新用户
-      const email = profile.primary_email || profile.login_id || `canvas_user_${canvasId}@example.com`;
       user = await this.prisma.user.create({
         data: {
           email,
@@ -36,11 +42,12 @@ export class GroupsService {
           avatar: profile.avatar_url ?? null,
         },
       });
-    } else if (!user.avatar && profile.avatar_url) {
-      // 如果用户存在但缺少头像，更新头像
+    } else if (!user.canvasId || !user.avatar || !user.name) {
+      // 如果用户存在但缺少 Canvas 身份或基础资料，更新资料
       user = await this.prisma.user.update({
         where: { id: user.id },
         data: {
+          canvasId: user.canvasId ?? canvasId,
           avatar: profile.avatar_url,
           name: user.name || profile.name || null,
         },

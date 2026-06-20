@@ -22,8 +22,9 @@ export class UserService {
 
     const canvasId = String(profile.id);
 
-    // 2. 优先通过 canvasId 查找用户
-    let user = await this.prisma.user.findFirst({ 
+    // 2. 优先通过 canvasId 查找用户，其次按 email 兼容旧数据
+    const email = profile.primary_email || profile.login_id || `canvas_user_${canvasId}@example.com`;
+    let user = await this.prisma.user.findUnique({
       where: { canvasId },
       select: {
         id: true,
@@ -36,8 +37,21 @@ export class UserService {
     });
 
     if (!user) {
+      user = await this.prisma.user.findUnique({
+        where: { email },
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          avatar: true,
+          canvasId: true,
+          createdAt: true,
+        }
+      });
+    }
+
+    if (!user) {
       // 创建新用户
-      const email = profile.primary_email || profile.login_id || `canvas_user_${canvasId}@example.com`;
       user = await this.prisma.user.create({
         data: {
           email,
