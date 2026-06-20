@@ -127,7 +127,12 @@ export const api = {
       console.error('[API] getCourseAssignments: Unexpected format:', response.data);
       return [];
     } catch (error) {
-      console.error('[API] getCourseAssignments error:', error);
+      const status = error instanceof AxiosError ? error.response?.status : undefined;
+      if (status === 502 || status === 503 || error instanceof AxiosError && error.code === 'ECONNABORTED') {
+        console.warn(`[API] getCourseAssignments: course ${courseId} temporarily unavailable, using empty list`, error);
+      } else {
+        console.error('[API] getCourseAssignments error:', error);
+      }
       return [];
     }
   },
@@ -206,6 +211,20 @@ export const api = {
   analyzeCanvasFile: async (fileId: string, botId?: string): Promise<{ content: string; fileId: string; fileName: string; botId: string; analyzedAt: string }> => {
     const response = await apiClient.post(`/agent/analyze-ppt/${fileId}`, { botId });
     return response.data;
+  },
+
+  downloadCourseFile: async (file: Pick<CourseFile, 'canvasFileId' | 'fileName'>): Promise<void> => {
+    const response = await apiClient.get(`/files/download/${file.canvasFileId}`, {
+      responseType: 'blob',
+    });
+    const url = window.URL.createObjectURL(response.data);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = file.fileName || 'canvas-file';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
   },
   
   analyzeUploadedFile: async (file: File, botId?: string, prompt?: string): Promise<{ content: string; fileName: string; fileSize: number; mimeType: string; botId: string; analyzedAt: string }> => {

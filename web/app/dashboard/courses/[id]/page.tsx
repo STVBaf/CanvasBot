@@ -344,16 +344,15 @@ export default function CourseDetailPage() {
                             AI 总结
                           </button>
                           
-                          {file.downloadUrl && (
-                            <a 
-                              href={file.downloadUrl} 
-                              target="_blank"
-                              rel="noopener noreferrer"
+                          {file.canvasFileId && (
+                            <button
+                              type="button"
+                              onClick={() => api.downloadCourseFile(file)}
                               className="p-2 rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-200 transition-colors"
                               title="下载文件"
                             >
                               <Download className="w-4 h-4" />
-                            </a>
+                            </button>
                           )}
                         </div>
                       </div>

@@ -38,7 +38,7 @@ docker-compose up -d
 
 3) 配置后端环境变量 `server/.env`
 ```env
-CANVAS_BASE_URL=https://canvas.shufe.edu.cn/
+CANVAS_BASE_URL=https://canvas.sufe.edu.cn/
 DATABASE_URL="mysql://root:password@localhost:3307/canvas_helper"
 PORT=3000
 JWT_SECRET=dev-secret
