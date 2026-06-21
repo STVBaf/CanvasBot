@@ -124,36 +124,36 @@ export default function GroupsPage() {
 
       {/* 空状态判断 */}
       {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">{[1, 2, 3].map(i => <div key={i} className="h-40 bg-gray-100 rounded-3xl animate-pulse" />)}</div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">{[1, 2, 3].map(i => <div key={i} className="h-40 bg-muted rounded-3xl animate-pulse" />)}</div>
       ) : groups.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
           {groups.map((group) => (
-            <Card key={group.id} className="group hover:shadow-lg transition-all duration-300 border-none rounded-[2rem] overflow-hidden bg-white">
+            <Card key={group.id} className="group hover:shadow-lg transition-all duration-300 border-none rounded-[2rem] overflow-hidden bg-card">
               <CardContent className="p-6 flex flex-col h-full">
                 <div className="flex justify-between items-start mb-4">
                   <div className="flex items-center gap-3">
                     <div className="w-12 h-12 rounded-2xl flex items-center justify-center text-xl bg-indigo-100 text-indigo-600"><Users className="w-6 h-6" /></div>
                     <div>
-                      <h3 className="font-bold text-lg text-gray-900 line-clamp-1">{group.name}</h3>
+                      <h3 className="font-bold text-lg text-foreground line-clamp-1">{group.name}</h3>
                       <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1"><BookOpen className="w-3 h-3" /><span className="line-clamp-1">{group.courseName}</span></div>
                     </div>
                   </div>
                   {getRoleBadge(group)}
                 </div>
                 <div className="space-y-3 mb-6 flex-1">
-                  <div className="flex items-center justify-between text-sm"><span className="text-gray-500">成员 ({group.memberCount})</span></div>
+                  <div className="flex items-center justify-between text-sm"><span className="text-muted-foreground">成员 ({group.memberCount})</span></div>
                   <div className="flex flex-wrap gap-2">
-                    {group.members?.slice(0, 4).map((member) => <span key={member.id} className="text-xs bg-gray-50 text-gray-600 px-2 py-1 rounded-lg">{member.user.name}</span>)}
-                    {(group.members?.length || 0) > 4 && <span className="text-xs text-gray-400 px-1 py-1">...</span>}
+                    {group.members?.slice(0, 4).map((member) => <span key={member.id} className="text-xs bg-secondary text-muted-foreground px-2 py-1 rounded-lg">{member.user.name}</span>)}
+                    {(group.members?.length || 0) > 4 && <span className="text-xs text-muted-foreground px-1 py-1">...</span>}
                   </div>
                 </div>
-                <div className="pt-4 border-t border-gray-100 flex gap-2">
+                <div className="pt-4 border-t border-border flex gap-2">
                   {group.isCreator ? (
                     <button onClick={() => openConfirmModal(group, 'disband')} className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-red-50 text-red-600 text-sm font-bold hover:bg-red-100 transition-colors"><Trash2 className="w-4 h-4" /> 解散小组</button>
                   ) : group.isMember ? (
                     <button onClick={() => openConfirmModal(group, 'leave')} className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-orange-50 text-orange-600 text-sm font-bold hover:bg-orange-100 transition-colors"><LogOut className="w-4 h-4" /> 退出小组</button>
                   ) : (
-                    <button onClick={() => openConfirmModal(group, 'join')} className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold transition-colors bg-black text-white hover:bg-gray-800"><UserPlus className="w-4 h-4" /> 加入小组</button>
+                    <button onClick={() => openConfirmModal(group, 'join')} className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold transition-colors bg-primary text-primary-foreground hover:opacity-90"><UserPlus className="w-4 h-4" /> 加入小组</button>
                   )}
                 </div>
               </CardContent>
@@ -169,29 +169,29 @@ export default function GroupsPage() {
 
       {isCreateModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md p-6 animate-in zoom-in-95" onClick={e => e.stopPropagation()}>
+          <div className="bg-card rounded-3xl shadow-2xl w-full max-w-md p-6 animate-in zoom-in-95" onClick={e => e.stopPropagation()}>
             <div className="flex justify-between items-center mb-6">
               <h3 className="text-xl font-bold">创建新小组</h3>
-              <button onClick={() => setIsCreateModalOpen(false)} className="p-2 hover:bg-gray-100 rounded-full"><X className="w-5 h-5 text-gray-500" /></button>
+              <button onClick={() => setIsCreateModalOpen(false)} className="p-2 hover:bg-secondary rounded-full"><X className="w-5 h-5 text-muted-foreground" /></button>
             </div>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-bold text-gray-700 mb-2">小组名称</label>
-                <input type="text" value={newGroupName} onChange={(e) => setNewGroupName(e.target.value)} placeholder="例如：CS101 期末突击队" className="w-full px-4 py-3 rounded-xl bg-gray-50 border-none focus:ring-2 focus:ring-primary/20 outline-none transition-all" />
+                <label className="block text-sm font-bold text-muted-foreground mb-2">小组名称</label>
+                <input type="text" value={newGroupName} onChange={(e) => setNewGroupName(e.target.value)} placeholder="例如：CS101 期末突击队" className="w-full px-4 py-3 rounded-xl bg-secondary border-none focus:ring-2 focus:ring-primary/20 outline-none transition-all" />
               </div>
               <div>
-                <label className="block text-sm font-bold text-gray-700 mb-2">所属课程</label>
-                <select value={selectedCourseId} onChange={(e) => setSelectedCourseId(e.target.value)} className="w-full px-4 py-3 rounded-xl bg-gray-50 border-none focus:ring-2 focus:ring-primary/20 outline-none cursor-pointer appearance-none">
+                <label className="block text-sm font-bold text-muted-foreground mb-2">所属课程</label>
+                <select value={selectedCourseId} onChange={(e) => setSelectedCourseId(e.target.value)} className="w-full px-4 py-3 rounded-xl bg-secondary border-none focus:ring-2 focus:ring-primary/20 outline-none cursor-pointer appearance-none">
                   <option value="" disabled>选择课程...</option>
                   {courses.map(course => {
                     const isJoined = joinedCourseIds.includes(String(course.id));
-                    return <option key={course.id} value={course.id} disabled={isJoined} className={isJoined ? 'text-gray-400' : ''}>{course.name} ({course.course_code}) {isJoined ? '- 已有小组' : ''}</option>;
+                    return <option key={course.id} value={course.id} disabled={isJoined} className={isJoined ? 'text-muted-foreground' : ''}>{course.name} ({course.course_code}) {isJoined ? '- 已有小组' : ''}</option>;
                   })}
                 </select>
               </div>
             </div>
             <div className="mt-8 flex gap-3">
-              <button onClick={() => setIsCreateModalOpen(false)} className="flex-1 py-3 rounded-xl font-bold text-gray-600 hover:bg-gray-100 transition-colors">取消</button>
+              <button onClick={() => setIsCreateModalOpen(false)} className="flex-1 py-3 rounded-xl font-bold text-muted-foreground hover:bg-secondary transition-colors">取消</button>
               <button onClick={handleCreateGroup} disabled={!newGroupName || !selectedCourseId || isCreating} className="flex-1 py-3 rounded-xl bg-primary text-primary-foreground font-bold hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">{isCreating ? <Loader2 className="w-5 h-5 animate-spin" /> : '确认创建'}</button>
             </div>
           </div>
@@ -199,12 +199,12 @@ export default function GroupsPage() {
       )}
       {isConfirmModalOpen && selectedGroup && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-6 animate-in zoom-in-95">
+          <div className="bg-card rounded-3xl shadow-2xl w-full max-w-sm p-6 animate-in zoom-in-95">
             <h3 className="text-xl font-bold mb-2">{actionType === 'leave' ? '退出小组' : actionType === 'disband' ? '解散小组' : '加入小组'}</h3>
-            <p className="text-gray-500 mb-6">{actionType === 'leave' && `确定要退出 "${selectedGroup.name}" 吗？`}{actionType === 'disband' && `确定要解散 "${selectedGroup.name}" 吗？此操作无法撤销。`}{actionType === 'join' && `确定要加入 "${selectedGroup.name}" 吗？`}</p>
+            <p className="text-muted-foreground mb-6">{actionType === 'leave' && `确定要退出 "${selectedGroup.name}" 吗？`}{actionType === 'disband' && `确定要解散 "${selectedGroup.name}" 吗？此操作无法撤销。`}{actionType === 'join' && `确定要加入 "${selectedGroup.name}" 吗？`}</p>
             <div className="flex gap-3">
-              <button onClick={() => setIsConfirmModalOpen(false)} className="flex-1 py-3 rounded-xl font-bold text-gray-600 hover:bg-gray-100 transition-colors">取消</button>
-              <button onClick={handleConfirmAction} disabled={isActionLoading} className={`flex-1 py-3 rounded-xl text-white font-bold hover:opacity-90 transition-opacity flex items-center justify-center gap-2 ${actionType === 'disband' ? 'bg-red-500' : actionType === 'leave' ? 'bg-orange-500' : 'bg-black'}`}>{isActionLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : '确认'}</button>
+              <button onClick={() => setIsConfirmModalOpen(false)} className="flex-1 py-3 rounded-xl font-bold text-muted-foreground hover:bg-secondary transition-colors">取消</button>
+              <button onClick={handleConfirmAction} disabled={isActionLoading} className={`flex-1 py-3 rounded-xl text-white font-bold hover:opacity-90 transition-opacity flex items-center justify-center gap-2 ${actionType === 'disband' ? 'bg-red-500' : actionType === 'leave' ? 'bg-orange-500' : 'bg-primary'}`}>{isActionLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : '确认'}</button>
             </div>
           </div>
         </div>

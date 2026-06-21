@@ -100,7 +100,7 @@ export default function ProfilePage() {
           >
             {/* Main Profile Card */}
             <motion.div className="lg:col-span-2" variants={itemVariants}>
-              <Card className="bg-white border-none shadow-sm rounded-[2rem] overflow-hidden">
+              <Card className="bg-card border-none shadow-sm rounded-[2rem] overflow-hidden">
                 <CardHeader className="pb-6 px-8 pt-8 bg-gradient-to-br from-blue-50 to-purple-50">
                   <div className="flex items-center gap-6">
                     <div className="w-24 h-24 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center overflow-hidden">
@@ -111,57 +111,57 @@ export default function ProfilePage() {
                       )}
                     </div>
                     <div>
-                      <h2 className="text-3xl font-bold text-gray-900">{user.name}</h2>
-                      <p className="text-sm text-gray-600 mt-1">Canvas 用户</p>
+                      <h2 className="text-3xl font-bold text-foreground">{user.name}</h2>
+                      <p className="text-sm text-muted-foreground mt-1">Canvas 用户</p>
                     </div>
                   </div>
                 </CardHeader>
                 <CardContent className="p-8 space-y-6">
                   {/* Email */}
-                  <div className="flex items-start gap-4 p-4 rounded-2xl bg-gray-50">
+                  <div className="flex items-start gap-4 p-4 rounded-2xl bg-secondary">
                     <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
                       <Mail className="w-5 h-5 text-blue-600" />
                     </div>
                     <div className="flex-1">
-                      <p className="text-sm font-medium text-gray-500">邮箱地址</p>
-                      <p className="text-base font-bold text-gray-900 mt-1">{user.email}</p>
+                      <p className="text-sm font-medium text-muted-foreground">邮箱地址</p>
+                      <p className="text-base font-bold text-foreground mt-1">{user.email}</p>
                     </div>
                   </div>
 
                   {/* Canvas ID */}
                   {user.canvasId && (
-                    <div className="flex items-start gap-4 p-4 rounded-2xl bg-gray-50">
+                    <div className="flex items-start gap-4 p-4 rounded-2xl bg-secondary">
                       <div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center flex-shrink-0">
                         <Shield className="w-5 h-5 text-purple-600" />
                       </div>
                       <div className="flex-1">
-                        <p className="text-sm font-medium text-gray-500">Canvas ID</p>
-                        <p className="text-base font-bold text-gray-900 mt-1">{user.canvasId}</p>
+                        <p className="text-sm font-medium text-muted-foreground">Canvas ID</p>
+                        <p className="text-base font-bold text-foreground mt-1">{user.canvasId}</p>
                       </div>
                     </div>
                   )}
 
                   {/* Created At */}
                   {user.createdAt && (
-                    <div className="flex items-start gap-4 p-4 rounded-2xl bg-gray-50">
+                    <div className="flex items-start gap-4 p-4 rounded-2xl bg-secondary">
                       <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
                         <Calendar className="w-5 h-5 text-green-600" />
                       </div>
                       <div className="flex-1">
-                        <p className="text-sm font-medium text-gray-500">加入时间</p>
-                        <p className="text-base font-bold text-gray-900 mt-1">{formatDate(user.createdAt)}</p>
+                        <p className="text-sm font-medium text-muted-foreground">加入时间</p>
+                        <p className="text-base font-bold text-foreground mt-1">{formatDate(user.createdAt)}</p>
                       </div>
                     </div>
                   )}
 
                   {/* User ID */}
-                  <div className="flex items-start gap-4 p-4 rounded-2xl bg-gray-50">
+                  <div className="flex items-start gap-4 p-4 rounded-2xl bg-secondary">
                     <div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center flex-shrink-0">
                       <UserIcon className="w-5 h-5 text-orange-600" />
                     </div>
                     <div className="flex-1">
-                      <p className="text-sm font-medium text-gray-500">系统 ID</p>
-                      <p className="text-base font-mono text-gray-900 mt-1 text-sm">{user.id}</p>
+                      <p className="text-sm font-medium text-muted-foreground">系统 ID</p>
+                      <p className="text-base font-mono text-foreground mt-1 text-sm">{user.id}</p>
                     </div>
                   </div>
                 </CardContent>
@@ -178,8 +178,8 @@ export default function ProfilePage() {
                       <LogOut className="w-5 h-5 text-red-600" />
                     </div>
                     <div>
-                      <h3 className="font-bold text-gray-900">退出登录</h3>
-                      <p className="text-xs text-gray-600">退出当前账户</p>
+                      <h3 className="font-bold text-foreground">退出登录</h3>
+                      <p className="text-xs text-muted-foreground">退出当前账户</p>
                     </div>
                   </div>
                   <button 
@@ -192,21 +192,21 @@ export default function ProfilePage() {
               </Card>
 
               {/* Stats Card */}
-              <Card className="bg-white border-none shadow-sm rounded-[2rem]">
+              <Card className="bg-card border-none shadow-sm rounded-[2rem]">
                 <CardHeader className="pb-3 pt-6 px-6">
                   <CardTitle className="text-lg">使用统计</CardTitle>
                 </CardHeader>
                 <CardContent className="px-6 pb-6">
                   <div className="space-y-4">
                     <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600">活跃天数</span>
-                      <span className="text-lg font-bold text-gray-900">
+                      <span className="text-sm text-muted-foreground">活跃天数</span>
+                      <span className="text-lg font-bold text-foreground">
                         {user.createdAt ? Math.floor((new Date().getTime() - new Date(user.createdAt).getTime()) / (1000 * 60 * 60 * 24)) : 0} 天
                       </span>
                     </div>
-                    <div className="h-px bg-gray-200"></div>
+                    <div className="h-px bg-border"></div>
                     <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600">当前状态</span>
+                      <span className="text-sm text-muted-foreground">当前状态</span>
                       <span className="text-sm font-bold text-green-600 flex items-center gap-1">
                         <span className="w-2 h-2 rounded-full bg-green-500"></span>
                         在线
@@ -219,8 +219,8 @@ export default function ProfilePage() {
               {/* Help Card */}
               <Card className="bg-gradient-to-br from-indigo-50 to-blue-50 border-none shadow-sm rounded-[2rem]">
                 <CardContent className="p-6">
-                  <h3 className="font-bold text-gray-900 mb-2">需要帮助？</h3>
-                  <p className="text-sm text-gray-600 mb-4">
+                  <h3 className="font-bold text-foreground mb-2">需要帮助？</h3>
+                  <p className="text-sm text-muted-foreground mb-4">
                     查看使用指南或联系技术支持
                   </p>
                   <Link 
@@ -241,16 +241,16 @@ export default function ProfilePage() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
           >
-            <Card className="bg-white border-none shadow-sm rounded-[2rem] p-8">
+            <Card className="bg-card border-none shadow-sm rounded-[2rem] p-8">
               <div className="text-center py-12">
                 <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
                   <UserIcon className="w-8 h-8 text-red-600" />
                 </div>
-                <h3 className="text-lg font-bold text-gray-900 mb-2">无法加载用户信息</h3>
+                <h3 className="text-lg font-bold text-foreground mb-2">无法加载用户信息</h3>
                 <p className="text-sm text-muted-foreground mb-4">{error || '请检查网络连接或重新登录'}</p>
                 <button 
                   onClick={() => window.location.reload()}
-                  className="px-4 py-2 bg-primary text-white rounded-full hover:opacity-90 transition-opacity"
+                  className="px-4 py-2 bg-primary text-primary-foreground rounded-full hover:opacity-90 transition-opacity"
                 >
                   重新加载
                 </button>

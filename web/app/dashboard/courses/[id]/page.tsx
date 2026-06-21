@@ -206,7 +206,7 @@ export default function CourseDetailPage() {
     > 
       {/* Header */}
       <motion.div variants={item} className="flex items-center gap-4">
-        <Link href="/dashboard/courses" className="p-2 rounded-full hover:bg-gray-100 transition-colors">
+        <Link href="/dashboard/courses" className="p-2 rounded-full hover:bg-secondary transition-colors">
           <ArrowLeft className="w-6 h-6" />
         </Link>
         <div>
@@ -306,7 +306,7 @@ export default function CourseDetailPage() {
               
               {isLoadingData ? (
                 <div className="space-y-4">
-                  {[1, 2, 3].map(i => <div key={i} className="h-16 bg-gray-100 rounded-2xl animate-pulse" />)}
+                  {[1, 2, 3].map(i => <div key={i} className="h-16 bg-muted rounded-2xl animate-pulse" />)}
                 </div>
               ) : files.length > 0 ? (
                 <div className="space-y-3">
@@ -318,13 +318,13 @@ export default function CourseDetailPage() {
                     }
                     
                     return (
-                      <div key={file.id} className="flex items-center justify-between p-4 rounded-2xl bg-gray-50 hover:bg-white hover:shadow-md transition-all border border-transparent hover:border-gray-100 group">
+                      <div key={file.id} className="flex items-center justify-between p-4 rounded-2xl bg-secondary hover:bg-card hover:shadow-md transition-all border border-transparent hover:border-border group">
                         <div className="flex items-center gap-3 overflow-hidden">
                           <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center text-blue-600 flex-shrink-0">
                             <FileText className="w-5 h-5" />
                           </div>
                           <div className="min-w-0">
-                            <h4 className="font-medium text-gray-900 truncate pr-4" title={file.fileName || '未命名文件'}>
+                            <h4 className="font-medium text-foreground truncate pr-4" title={file.fileName || '未命名文件'}>
                               {file.fileName || '未命名文件'}
                             </h4>
                             <p className="text-xs text-muted-foreground">
@@ -348,7 +348,7 @@ export default function CourseDetailPage() {
                             <button
                               type="button"
                               onClick={() => api.downloadCourseFile(file)}
-                              className="p-2 rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-200 transition-colors"
+                              className="p-2 rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
                               title="下载文件"
                             >
                               <Download className="w-4 h-4" />
@@ -380,15 +380,15 @@ export default function CourseDetailPage() {
             <CardContent>
               {isLoadingData ? (
                  <div className="space-y-4">
-                   {[1, 2, 3].map(i => <div key={i} className="h-12 bg-gray-100 rounded-xl animate-pulse" />)}
+                   {[1, 2, 3].map(i => <div key={i} className="h-12 bg-muted rounded-xl animate-pulse" />)}
                  </div>
               ) : assignments.length > 0 ? (
                 <div className="space-y-4">
                   {assignments.map((assignment) => (
-                    <div key={assignment.id} className="flex items-start gap-4 p-4 rounded-2xl bg-gray-50 hover:bg-gray-100 transition-colors group">
+                    <div key={assignment.id} className="flex items-start gap-4 p-4 rounded-2xl bg-secondary hover:bg-secondary transition-colors group">
                       <div className={`w-2 h-2 mt-2 rounded-full flex-shrink-0 ${assignment.hasSubmitted ? 'bg-green-500' : assignment.isOverdue ? 'bg-red-500' : 'bg-orange-500'}`}></div>
                       <div className="flex-1 min-w-0">
-                        <h4 className="font-bold text-sm text-gray-900 truncate" title={assignment.name}>{assignment.name}</h4>
+                        <h4 className="font-bold text-sm text-foreground truncate" title={assignment.name}>{assignment.name}</h4>
                         <p className="text-xs text-muted-foreground mt-1">截止: {formatDueDate(assignment.dueAt)}</p>
                       </div>
                       {assignment.submissionStatus === 'graded' ? (
@@ -409,7 +409,7 @@ export default function CourseDetailPage() {
                         </span>
                       )}
                       {assignment.htmlUrl && (
-                        <a href={assignment.htmlUrl} target="_blank" rel="noreferrer" className="text-gray-400 hover:text-primary">
+                        <a href={assignment.htmlUrl} target="_blank" rel="noreferrer" className="text-muted-foreground hover:text-primary">
                           <ExternalLink className="w-4 h-4" />
                         </a>
                       )}
@@ -430,23 +430,23 @@ export default function CourseDetailPage() {
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setIsModalOpen(false)}>
           <div 
-            className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200"
+            className="bg-card rounded-3xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200"
             onClick={(e) => e.stopPropagation()}
           >
             {/* 弹窗头部 */}
-            <div className="flex items-center justify-between px-8 py-6 border-b border-gray-100 bg-gradient-to-r from-indigo-50 to-purple-50">
+            <div className="flex items-center justify-between px-8 py-6 border-b border-border bg-gradient-to-r from-indigo-50 to-purple-50">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-indigo-100 flex items-center justify-center">
                   <Sparkles className="w-5 h-5 text-indigo-600" />
                 </div>
                 <div>
-                  <h2 className="text-xl font-bold text-gray-900">AI 文件分析</h2>
-                  <p className="text-sm text-gray-600 truncate max-w-md" title={selectedFileName}>{selectedFileName}</p>
+                  <h2 className="text-xl font-bold text-foreground">AI 文件分析</h2>
+                  <p className="text-sm text-muted-foreground truncate max-w-md" title={selectedFileName}>{selectedFileName}</p>
                 </div>
               </div>
-              <button 
+              <button
                 onClick={() => setIsModalOpen(false)}
-                className="w-10 h-10 rounded-full hover:bg-gray-100 transition-colors flex items-center justify-center text-gray-500 hover:text-gray-700"
+                className="w-10 h-10 rounded-full hover:bg-secondary transition-colors flex items-center justify-center text-muted-foreground hover:text-foreground"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -457,27 +457,27 @@ export default function CourseDetailPage() {
               {isLoadingSummary ? (
                 <div className="flex flex-col items-center justify-center py-16">
                   <Loader2 className="w-12 h-12 animate-spin text-indigo-600 mb-4" />
-                  <p className="text-gray-600 font-medium">AI 正在分析文件内容...</p>
-                  <p className="text-sm text-gray-400 mt-2">这可能需要一些时间，请稍候</p>
+                  <p className="text-muted-foreground font-medium">AI 正在分析文件内容...</p>
+                  <p className="text-sm text-muted-foreground mt-2">这可能需要一些时间，请稍候</p>
                 </div>
               ) : summaryError ? (
                 <div className="flex flex-col items-center justify-center py-16">
                   <div className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center mb-4">
                     <X className="w-8 h-8 text-red-600" />
                   </div>
-                  <h3 className="text-lg font-bold text-gray-900 mb-2">分析失败</h3>
-                  <p className="text-sm text-gray-600 mb-4">{summaryError}</p>
+                  <h3 className="text-lg font-bold text-foreground mb-2">分析失败</h3>
+                  <p className="text-sm text-muted-foreground mb-4">{summaryError}</p>
                   <button
                     onClick={() => setIsModalOpen(false)}
-                    className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                    className="px-4 py-2 bg-secondary text-foreground rounded-lg hover:bg-secondary transition-colors"
                   >
                     关闭
                   </button>
                 </div>
               ) : aiSummaryContent ? (
-                <MarkdownRenderer content={aiSummaryContent} className="text-gray-800" />
+                <MarkdownRenderer content={aiSummaryContent} className="text-foreground" />
               ) : (
-                <div className="text-center py-16 text-gray-400">
+                <div className="text-center py-16 text-muted-foreground">
                   暂无分析结果
                 </div>
               )}
@@ -485,10 +485,10 @@ export default function CourseDetailPage() {
 
             {/* 弹窗底部 */}
             {!isLoadingSummary && aiSummaryContent && (
-              <div className="px-8 py-4 border-t border-gray-100 bg-gray-50 flex justify-end gap-3">
+              <div className="px-8 py-4 border-t border-border bg-secondary flex justify-end gap-3">
                 <button
                   onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 transition-colors font-medium"
+                  className="px-4 py-2 bg-card border border-border text-foreground rounded-xl hover:bg-secondary transition-colors font-medium"
                 >
                   关闭
                 </button>

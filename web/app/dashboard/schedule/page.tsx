@@ -167,21 +167,21 @@ export default function SchedulePage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-6">
           <motion.div variants={item}>
-            <Card className="border-none shadow-sm overflow-hidden bg-white rounded-[2rem]">
-              <CardHeader className="border-b border-gray-100 pb-4 px-8 pt-8">
+            <Card className="border-none shadow-sm overflow-hidden bg-card rounded-[2rem]">
+              <CardHeader className="border-b border-border pb-4 px-8 pt-8">
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-xl font-bold flex items-center gap-2"><Clock className="w-5 h-5 text-primary" /> 作业截止列表</CardTitle>
                   <div className="flex items-center gap-2">
                     <button 
                       onClick={() => setShowOnlyNotOverdue(!showOnlyNotOverdue)} 
-                      className={`flex items-center gap-2 text-sm font-medium px-4 py-2 rounded-full transition-all ${showOnlyNotOverdue ? 'bg-blue-600 text-white shadow-md' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                      className={`flex items-center gap-2 text-sm font-medium px-4 py-2 rounded-full transition-all ${showOnlyNotOverdue ? 'bg-blue-600 text-white shadow-md' : 'bg-secondary text-muted-foreground hover:bg-secondary'}`}
                     >
                       {showOnlyNotOverdue ? <X className="w-4 h-4" /> : <CalendarIcon className="w-4 h-4" />}
                       {showOnlyNotOverdue ? '显示全部' : '只看未截止'}
                     </button>
                     <button 
                       onClick={() => setShowPendingOnly(!showPendingOnly)} 
-                      className={`flex items-center gap-2 text-sm font-medium px-4 py-2 rounded-full transition-all ${showPendingOnly ? 'bg-black text-white shadow-md' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                      className={`flex items-center gap-2 text-sm font-medium px-4 py-2 rounded-full transition-all ${showPendingOnly ? 'bg-primary text-primary-foreground shadow-md' : 'bg-secondary text-muted-foreground hover:bg-secondary'}`}
                     >
                       {showPendingOnly ? <X className="w-4 h-4" /> : <Filter className="w-4 h-4" />}
                       {showPendingOnly ? '显示全部' : '只看未完成'}
@@ -192,13 +192,13 @@ export default function SchedulePage() {
               <CardContent className="p-0">
                 <div className="overflow-x-auto">
                   <table className="w-full">
-                    <thead className="bg-gray-50/50 text-xs uppercase text-gray-400 font-medium"><tr><th className="px-8 py-4 text-left tracking-wider w-32">状态</th><th className="px-6 py-4 text-left tracking-wider">作业名称</th><th className="px-6 py-4 text-left tracking-wider w-56">课程</th><th className="px-6 py-4 text-left tracking-wider w-40">截止时间</th><th className="px-6 py-4 text-right tracking-wider whitespace-nowrap w-28">前往课程</th></tr></thead>
-                    <tbody className="divide-y divide-gray-50">
+                    <thead className="bg-secondary text-xs uppercase text-muted-foreground font-medium"><tr><th className="px-8 py-4 text-left tracking-wider w-32">状态</th><th className="px-6 py-4 text-left tracking-wider">作业名称</th><th className="px-6 py-4 text-left tracking-wider w-56">课程</th><th className="px-6 py-4 text-left tracking-wider w-40">截止时间</th><th className="px-6 py-4 text-right tracking-wider whitespace-nowrap w-28">前往课程</th></tr></thead>
+                    <tbody className="divide-y divide-border">
                       {loading ? (
                         <tr key="loading"><td colSpan={5} className="py-12 text-center"><div className="flex justify-center items-center gap-2 text-muted-foreground"><Loader2 className="w-5 h-5 animate-spin" /> 加载中...</div></td></tr>
                       ) : filteredAssignments.length > 0 ? (
                         filteredAssignments.map((assign, index) => (
-                          <tr key={`${assign.courseId}-${assign.id}-${index}`} className="group hover:bg-gray-50/80 transition-colors">
+                          <tr key={`${assign.courseId}-${assign.id}-${index}`} className="group hover:bg-secondary transition-colors">
                             <td className="px-8 py-5 whitespace-nowrap">
                               {assign.submissionStatus === 'graded' ? (
                                 <div className="flex items-center gap-2 text-green-600 bg-green-50 px-3 py-1 rounded-full w-fit">
@@ -222,10 +222,10 @@ export default function SchedulePage() {
                                 </div>
                               )}
                             </td>
-                            <td className="px-6 py-5"><span className="font-bold text-gray-900 group-hover:text-primary transition-colors text-base line-clamp-1" title={assign.name}>{assign.name}</span></td>
-                            <td className="px-6 py-5"><div className="flex items-center gap-3"><div className={`w-10 h-10 rounded-full ${getCourseColor(assign.courseId).bg} flex items-center justify-center flex-shrink-0`}><BookOpen className={`w-5 h-5 ${getCourseColor(assign.courseId).text}`} /></div><div className="flex flex-col"><span className="text-sm font-bold text-gray-900">{getCourseCode(assign.courseId)}</span><span className="text-xs text-muted-foreground line-clamp-1" title={assign.courseName || getCourseName(assign.courseId)}>{assign.courseName || getCourseName(assign.courseId)}</span></div></div></td>
-                            <td className="px-6 py-5 whitespace-nowrap"><div className="flex items-center gap-2 text-sm font-medium text-gray-700"><CalendarIcon className="w-4 h-4 text-gray-400" />{formatDisplayDate(assign.dueAt)}</div></td>
-                            <td className="px-6 py-5 text-right"><Link href={`/dashboard/courses/${assign.courseId}`} title="前往课程详情页" className="inline-flex p-2 rounded-full hover:bg-white hover:shadow-md text-gray-400 hover:text-primary transition-all cursor-pointer"><ArrowUpRight className="w-5 h-5" /></Link></td>
+                            <td className="px-6 py-5"><span className="font-bold text-foreground group-hover:text-primary transition-colors text-base line-clamp-1" title={assign.name}>{assign.name}</span></td>
+                            <td className="px-6 py-5"><div className="flex items-center gap-3"><div className={`w-10 h-10 rounded-full ${getCourseColor(assign.courseId).bg} flex items-center justify-center flex-shrink-0`}><BookOpen className={`w-5 h-5 ${getCourseColor(assign.courseId).text}`} /></div><div className="flex flex-col"><span className="text-sm font-bold text-foreground">{getCourseCode(assign.courseId)}</span><span className="text-xs text-muted-foreground line-clamp-1" title={assign.courseName || getCourseName(assign.courseId)}>{assign.courseName || getCourseName(assign.courseId)}</span></div></div></td>
+                            <td className="px-6 py-5 whitespace-nowrap"><div className="flex items-center gap-2 text-sm font-medium text-muted-foreground"><CalendarIcon className="w-4 h-4 text-muted-foreground" />{formatDisplayDate(assign.dueAt)}</div></td>
+                            <td className="px-6 py-5 text-right"><Link href={`/dashboard/courses/${assign.courseId}`} title="前往课程详情页" className="inline-flex p-2 rounded-full hover:bg-card hover:shadow-md text-muted-foreground hover:text-primary transition-all cursor-pointer"><ArrowUpRight className="w-5 h-5" /></Link></td>
                           </tr>
                         ))
                       ) : <tr key="empty"><td colSpan={5} className="text-center py-12 text-muted-foreground">没有符合条件的作业 🎉</td></tr>}
@@ -239,7 +239,7 @@ export default function SchedulePage() {
 
         <div className="space-y-8">
           <motion.div variants={item}>
-            <Card className="bg-white sticky top-8 rounded-[2rem] border-none shadow-sm">
+            <Card className="bg-card sticky top-8 rounded-[2rem] border-none shadow-sm">
               <CardHeader className="pb-2 pt-6 px-6">
                 <CardTitle className="text-lg flex items-center gap-2">
                   <CalendarIcon className="w-5 h-5" /> 日历视图
@@ -272,31 +272,31 @@ export default function SchedulePage() {
                       <div 
                         key={i} 
                         className={`
-                          aspect-square flex flex-col items-center justify-center rounded-full text-sm cursor-pointer hover:bg-gray-100 relative group
-                          ${isToday ? 'bg-black text-white hover:bg-black' : ''}
+                          aspect-square flex flex-col items-center justify-center rounded-full text-sm cursor-pointer hover:bg-secondary relative group
+                          ${isToday ? 'bg-primary text-primary-foreground hover:bg-primary' : ''}
                           ${hasDeadline && !isToday ? 'font-bold text-orange-600' : ''}
                         `}
                       >
                         {day}
                         {hasDeadline && (
                           <>
-                            <div className={`w-1 h-1 rounded-full mt-0.5 ${isToday ? 'bg-white' : 'bg-orange-500'}`} />
-                            
+                            <div className={`w-1 h-1 rounded-full mt-0.5 ${isToday ? 'bg-primary-foreground' : 'bg-orange-500'}`} />
+
                             {/* Tooltip for assignments */}
-                            <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 w-48 bg-white shadow-xl rounded-xl p-3 hidden group-hover:block z-50 border border-gray-100 text-left pointer-events-none">
-                              <div className="text-xs font-bold text-gray-900 mb-2 border-b border-gray-100 pb-2">
+                            <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 w-48 bg-card shadow-xl rounded-xl p-3 hidden group-hover:block z-50 border border-border text-left pointer-events-none">
+                              <div className="text-xs font-bold text-foreground mb-2 border-b border-border pb-2">
                                 {new Date().getMonth() + 1}月{day}日截止 ({dayAssignments.length})
                               </div>
                               <div className="space-y-2">
                                 {dayAssignments.map((a, idx) => (
                                   <div key={`${a.id}-${idx}`} className="text-xs">
-                                    <div className="font-medium text-gray-900 truncate" title={a.name}>{a.name}</div>
-                                    <div className="text-gray-500 text-[10px] truncate">{a.courseName || getCourseName(a.courseId)}</div>
+                                    <div className="font-medium text-foreground truncate" title={a.name}>{a.name}</div>
+                                    <div className="text-muted-foreground text-[10px] truncate">{a.courseName || getCourseName(a.courseId)}</div>
                                   </div>
                                 ))}
                               </div>
                               {/* Arrow */}
-                              <div className="absolute top-full left-1/2 transform -translate-x-1/2 -mt-1 border-4 border-transparent border-t-white"></div>
+                              <div className="absolute top-full left-1/2 transform -translate-x-1/2 -mt-1 border-4 border-transparent border-t-card"></div>
                             </div>
                           </>
                         )}
@@ -304,15 +304,15 @@ export default function SchedulePage() {
                     );
                   })}
                 </div>
-                <div className="space-y-4 mt-6 pt-6 border-t border-gray-100">
+                <div className="space-y-4 mt-6 pt-6 border-t border-border">
                   <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wider">即将截止 (3天内)</h3>
                   {loading ? <Loader2 className="animate-spin" /> : urgentDeadlines.length > 0 ? (
                     urgentDeadlines.map((item) => (
                       <Link href={`/dashboard/courses/${item.courseId}`} key={item.id} className="block">
-                        <div className="flex items-start gap-3 p-3 rounded-2xl bg-gray-50 hover:bg-orange-50 transition-colors group cursor-pointer">
+                        <div className="flex items-start gap-3 p-3 rounded-2xl bg-secondary hover:bg-orange-50 transition-colors group cursor-pointer">
                           <div className="w-2 h-2 mt-2 rounded-full bg-red-500 flex-shrink-0"></div>
                           <div className="overflow-hidden">
-                            <p className="text-sm font-bold text-gray-900 truncate">{item.name}</p>
+                            <p className="text-sm font-bold text-foreground truncate">{item.name}</p>
                             <p className="text-xs text-muted-foreground group-hover:text-orange-700 truncate">{item.courseName || getCourseName(item.courseId)} • {formatDueDate(item.dueAt)}</p>
                           </div>
                         </div>

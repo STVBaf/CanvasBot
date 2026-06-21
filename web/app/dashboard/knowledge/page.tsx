@@ -103,7 +103,7 @@ export default function KnowledgePage() {
       case 'doc': return <FileText className="w-5 h-5 text-blue-500" />;
       case 'image': return <FileImage className="w-5 h-5 text-purple-500" />;
       case 'code': return <FileCode className="w-5 h-5 text-green-500" />;
-      default: return <File className="w-5 h-5 text-gray-500" />;
+      default: return <File className="w-5 h-5 text-muted-foreground" />;
     }
   };
 
@@ -142,7 +142,7 @@ export default function KnowledgePage() {
         </div>
         <div className="flex items-center gap-3">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
             <input 
               type="text" 
               placeholder="搜索文件..." 
@@ -151,7 +151,7 @@ export default function KnowledgePage() {
               className="pl-10 pr-4 py-2 rounded-full border border-gray-200 focus:outline-none focus:ring-2 focus:ring-primary/20 w-64 bg-white"
             />
           </div>
-          <button className="flex items-center gap-2 bg-black text-white px-4 py-2 rounded-full hover:bg-gray-800 transition-colors" onClick={() => setIsUploadModalOpen(true)}>
+          <button className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-full hover:opacity-90 transition-colors" onClick={() => setIsUploadModalOpen(true)}>
             <Plus className="w-4 h-4" />
             <span className="text-sm font-medium">上传文件</span>
           </button>
@@ -173,7 +173,7 @@ export default function KnowledgePage() {
                 <div className={`w-10 h-10 rounded-xl ${folder.color} flex items-center justify-center`}>
                   <Folder className="w-5 h-5" />
                 </div>
-                <button className="text-gray-300 hover:text-gray-600">
+                <button className="text-gray-300 hover:text-muted-foreground">
                   <MoreVertical className="w-4 h-4" />
                 </button>
               </div>
@@ -200,7 +200,7 @@ export default function KnowledgePage() {
             <CardContent className="p-0">
               <div className="overflow-x-auto">
                 <table className="w-full">
-                  <thead className="bg-gray-50/50 text-xs uppercase text-gray-400 font-medium">
+                  <thead className="bg-gray-50/50 text-xs uppercase text-muted-foreground font-medium">
                     <tr>
                       <th className="px-8 py-4 text-left tracking-wider">名称</th>
                       <th className="px-6 py-4 text-left tracking-wider">所属课程</th>
@@ -227,18 +227,18 @@ export default function KnowledgePage() {
                             {file.course}
                           </span>
                         </td>
-                        <td className="px-6 py-4 text-sm text-gray-500">
+                        <td className="px-6 py-4 text-sm text-muted-foreground">
                           {file.size}
                         </td>
                         <td className="px-6 py-4 text-right">
                           <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button className="p-2 hover:bg-white rounded-full text-gray-400 hover:text-primary transition-colors" title="下载">
+                            <button className="p-2 hover:bg-white rounded-full text-muted-foreground hover:text-primary transition-colors" title="下载">
                               <Download className="w-4 h-4" />
                             </button>
-                            <button className="p-2 hover:bg-white rounded-full text-gray-400 hover:text-primary transition-colors" title="分享">
+                            <button className="p-2 hover:bg-white rounded-full text-muted-foreground hover:text-primary transition-colors" title="分享">
                               <Share2 className="w-4 h-4" />
                             </button>
-                            <button className="p-2 hover:bg-white rounded-full text-gray-400 hover:text-red-500 transition-colors" title="删除">
+                            <button className="p-2 hover:bg-white rounded-full text-muted-foreground hover:text-red-500 transition-colors" title="删除">
                               <Trash2 className="w-4 h-4" />
                             </button>
                           </div>
@@ -255,23 +255,23 @@ export default function KnowledgePage() {
         {/* Sidebar: Recent Activity / Storage */}
         <motion.div variants={item} className="space-y-6">
           {/* Storage Status */}
-          <Card className="bg-black text-white rounded-[2rem] border-none shadow-lg">
+          <Card className="bg-neutral-900 text-white rounded-[2rem] border-none shadow-lg">
             <CardContent className="p-6">
               <h3 className="font-bold text-lg mb-4">存储空间</h3>
               <div className="mb-2 flex justify-between text-sm">
                 <span className="text-gray-400">已使用</span>
                 <span className="font-medium">4.2 GB / 10 GB</span>
               </div>
-              <div className="w-full bg-gray-800 rounded-full h-2 mb-6">
+              <div className="w-full bg-white/10 rounded-full h-2 mb-6">
                 <div className="bg-white h-2 rounded-full" style={{ width: '42%' }}></div>
               </div>
               <div className="grid grid-cols-2 gap-4">
-                <div className="bg-gray-900 p-3 rounded-xl">
+                <div className="bg-white/10 p-3 rounded-xl">
                   <div className="w-2 h-2 rounded-full bg-blue-500 mb-2"></div>
                   <p className="text-xs text-gray-400">文档</p>
                   <p className="font-bold">2.1 GB</p>
                 </div>
-                <div className="bg-gray-900 p-3 rounded-xl">
+                <div className="bg-white/10 p-3 rounded-xl">
                   <div className="w-2 h-2 rounded-full bg-purple-500 mb-2"></div>
                   <p className="text-xs text-gray-400">图片</p>
                   <p className="font-bold">1.5 GB</p>
@@ -321,12 +321,12 @@ export default function KnowledgePage() {
                 </div>
                 <div>
                   <h2 className="text-xl font-bold text-gray-900">上传并分析文件</h2>
-                  <p className="text-sm text-gray-600">支持 PDF、DOC、DOCX、TXT、MD 等格式</p>
+                  <p className="text-sm text-muted-foreground">支持 PDF、DOC、DOCX、TXT、MD 等格式</p>
                 </div>
               </div>
               <button 
                 onClick={handleCloseModal}
-                className="w-10 h-10 rounded-full hover:bg-gray-100 transition-colors flex items-center justify-center text-gray-500 hover:text-gray-700"
+                className="w-10 h-10 rounded-full hover:bg-gray-100 transition-colors flex items-center justify-center text-muted-foreground hover:text-muted-foreground"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -339,9 +339,9 @@ export default function KnowledgePage() {
                 <div className="border-2 border-dashed border-gray-300 rounded-2xl p-12 text-center hover:border-purple-500 transition-colors cursor-pointer"
                   onClick={() => document.getElementById('file-upload')?.click()}
                 >
-                  <Upload className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                  <Upload className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
                   <h3 className="text-lg font-bold text-gray-900 mb-2">拖拽文件到这里或点击上传</h3>
-                  <p className="text-sm text-gray-600 mb-4">最大支持 50 MB</p>
+                  <p className="text-sm text-muted-foreground mb-4">最大支持 50 MB</p>
                   <input 
                     id="file-upload"
                     type="file" 
@@ -367,13 +367,13 @@ export default function KnowledgePage() {
                   </div>
                   <div>
                     <h3 className="text-lg font-bold text-gray-900 mb-2">已选择文件</h3>
-                    <p className="text-sm text-gray-600">{selectedFile.name}</p>
-                    <p className="text-xs text-gray-400 mt-1">{(selectedFile.size / 1024 / 1024).toFixed(2)} MB</p>
+                    <p className="text-sm text-muted-foreground">{selectedFile.name}</p>
+                    <p className="text-xs text-muted-foreground mt-1">{(selectedFile.size / 1024 / 1024).toFixed(2)} MB</p>
                   </div>
                   <div className="flex gap-3 justify-center">
                     <button
                       onClick={() => setSelectedFile(null)}
-                      className="px-6 py-2 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-colors font-medium"
+                      className="px-6 py-2 bg-gray-100 text-muted-foreground rounded-xl hover:bg-gray-200 transition-colors font-medium"
                     >
                       重新选择
                     </button>
@@ -390,8 +390,8 @@ export default function KnowledgePage() {
                 /* 分析中 */
                 <div className="flex flex-col items-center justify-center py-16">
                   <Loader2 className="w-12 h-12 animate-spin text-purple-600 mb-4" />
-                  <p className="text-gray-600 font-medium">AI 正在分析文件内容...</p>
-                  <p className="text-sm text-gray-400 mt-2">这可能需要一些时间，请稍候</p>
+                  <p className="text-muted-foreground font-medium">AI 正在分析文件内容...</p>
+                  <p className="text-sm text-muted-foreground mt-2">这可能需要一些时间，请稍候</p>
                 </div>
               ) : analysisError ? (
                 /* 分析失败 */
@@ -400,11 +400,11 @@ export default function KnowledgePage() {
                     <X className="w-8 h-8 text-red-600" />
                   </div>
                   <h3 className="text-lg font-bold text-gray-900 mb-2">分析失败</h3>
-                  <p className="text-sm text-gray-600 mb-4">{analysisError}</p>
+                  <p className="text-sm text-muted-foreground mb-4">{analysisError}</p>
                   <div className="flex gap-3">
                     <button
                       onClick={() => setSelectedFile(null)}
-                      className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                      className="px-4 py-2 bg-gray-100 text-muted-foreground rounded-lg hover:bg-gray-200 transition-colors"
                     >
                       重新选择
                     </button>
@@ -439,7 +439,7 @@ export default function KnowledgePage() {
                     setSelectedFile(null);
                     setAnalysisResult('');
                   }}
-                  className="px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 transition-colors font-medium"
+                  className="px-4 py-2 bg-white border border-gray-200 text-muted-foreground rounded-xl hover:bg-gray-50 transition-colors font-medium"
                 >
                   分析新文件
                 </button>
