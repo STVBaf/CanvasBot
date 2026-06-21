@@ -4,9 +4,10 @@ import { AgentService } from './agent.service';
 import { CanvasModule } from '../canvas/canvas.module';
 import { AssignmentsModule } from '../assignments/assignments.module';
 import { FilesModule } from '../files/files.module';
+import { PrismaModule } from '../prisma/prisma.module';
 
 @Module({
-  imports: [CanvasModule, AssignmentsModule, FilesModule],
+  imports: [CanvasModule, AssignmentsModule, FilesModule, PrismaModule],
   controllers: [AgentController],
   providers: [AgentService],
   exports: [AgentService],

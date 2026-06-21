@@ -68,7 +68,9 @@ export class FilesController {
     // 设置响应头
     res.setHeader('Content-Type', file.contentType || 'application/octet-stream');
     res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(file.fileName)}"`);
-    res.setHeader('Content-Length', file.size);
+    if (file.size) {
+      res.setHeader('Content-Length', file.size);
+    }
     
     // 发送文件内容
     res.send(file.buffer);

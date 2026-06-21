@@ -35,29 +35,27 @@ async function main() {
 
     // 3. 存入数据库
     for (const file of files) {
-      // 检查数据库里是否已经有了，防止重复写入
-      const existingFile = await prisma.fileMeta.findUnique({
-        where: { canvasFileId: String(file.id) }
-      });
-
-      if (existingFile) {
-        console.log(`   ⏭️  跳过已存在: ${file.display_name}`);
-        continue;
-      }
-
-      // 写入新文件记录
-      await prisma.fileMeta.create({
-        data: {
-            fileName: file.display_name,
-            canvasFileId: String(file.id),
-            courseId: String(course.id),
-            
-            // fileType: file.content_type?.split('/')[1] || 'unknown',
-  
+      const canvasFileId = String(file.id);
+      await prisma.fileMeta.upsert({
+        where: {
+          userId_canvasFileId: {
             userId: TARGET_USER_ID,
-            downloadUrl: file.url,
-            status: 'pending',
-          }
+            canvasFileId,
+          },
+        },
+        update: {
+          fileName: file.display_name,
+          courseId: String(course.id),
+          downloadUrl: file.url,
+        },
+        create: {
+          fileName: file.display_name,
+          canvasFileId,
+          courseId: String(course.id),
+          userId: TARGET_USER_ID,
+          downloadUrl: file.url,
+          status: 'pending',
+        },
       });
       console.log(`   ✅ 已同步入库: ${file.display_name}`);
     }

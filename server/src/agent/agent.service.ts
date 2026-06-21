@@ -647,7 +647,7 @@ export class AgentService {
       ];
 
       // 添加所有文件
-      fileIds.forEach((fileId, index) => {
+      fileIds.forEach(fileId => {
         messageContent.push({
           type: 'file',
           file_id: fileId

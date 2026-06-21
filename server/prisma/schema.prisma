@@ -12,7 +12,7 @@ model User {
 	email     String   @unique
 	name      String?
 	avatar    String?  // 用户头像 URL
-	canvasId  String?  // Canvas 用户 ID
+	canvasId  String?  @unique // Canvas 用户 ID
 	createdAt DateTime @default(now())
 	updatedAt DateTime @updatedAt
 	tokens    Token[]
@@ -42,7 +42,7 @@ model FileMeta {
 	user         User     @relation(fields: [userId], references: [id])
 	userId       String
 	courseId     String
-	canvasFileId String   @unique
+	canvasFileId String
 	fileName     String
 	fileSize     Int?     // 文件大小（字节）
 	contentType  String?  // 文件类型
@@ -51,6 +51,9 @@ model FileMeta {
 	status       String   @default("pending")
 	createdAt    DateTime @default(now())
 	updatedAt    DateTime @updatedAt
+
+	@@unique([userId, canvasFileId])
+	@@index([userId, courseId])
 }
 
 // 课程小组模型
@@ -84,4 +87,19 @@ model GroupMember {
 	@@unique([groupId, userId])  // 同一用户不能重复加入同一小组
 	@@index([groupId])
 	@@index([userId])
+}
+
+model AgentRequestLog {
+	id         String   @id @default(cuid())
+	tokenHash  String
+	botId      String?
+	action     String
+	status     String
+	error      String?
+	durationMs Int?
+	createdAt  DateTime @default(now())
+
+	@@index([tokenHash, createdAt])
+	@@index([action, createdAt])
+	@@index([status, createdAt])
 }

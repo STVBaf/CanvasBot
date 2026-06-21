@@ -79,30 +79,41 @@ export class AuthService {
   async loginWithManualToken(accessToken: string, email?: string) {
     // 1. 使用 access token 获取用户信息
     const profile = await this.canvas.getUserProfile(accessToken);
-    const providerUserId = profile?.id ? String(profile.id) : undefined;
-    const userEmail = email ?? profile?.primary_email ?? profile?.login_id ?? `canvas_user_${Date.now()}@example.com`;
+    const canvasId = profile?.id ? String(profile.id) : undefined;
+    const userEmail = profile?.primary_email ?? profile?.login_id ?? email ?? `canvas_user_${Date.now()}@example.com`;
 
     // 2. 创建或更新用户和 token
     const meRes = await this.prisma.$transaction(async () => {
-      // 先查找是否已有该用户
-      let user = await this.prisma.user.findUnique({
-        where: { email: userEmail },
-      });
+      // 优先按 Canvas 用户 ID 归并，其次按邮箱兼容旧数据。
+      let user = canvasId
+        ? await this.prisma.user.findUnique({ where: { canvasId } })
+        : null;
+
+      if (!user) {
+        user = await this.prisma.user.findUnique({
+          where: { email: userEmail },
+        });
+      }
 
       if (!user) {
         // 创建新用户
         user = await this.prisma.user.create({
           data: {
             email: userEmail,
-            ...(profile?.name && { name: profile.name }),
+            name: profile?.name ?? null,
+            avatar: profile?.avatar_url ?? null,
+            canvasId: canvasId ?? null,
           },
         });
       } else {
         // 更新用户信息
         user = await this.prisma.user.update({
-          where: { email: userEmail },
+          where: { id: user.id },
           data: {
-            ...(profile?.name && { name: profile.name }),
+            email: user.email || userEmail,
+            name: profile?.name ?? user.name,
+            avatar: profile?.avatar_url ?? user.avatar,
+            canvasId: canvasId ?? user.canvasId,
           },
         });
       }
@@ -118,7 +129,7 @@ export class AuthService {
           where: { id: existingToken.id },
           data: {
             accessToken,
-            providerUserId: providerUserId ?? null,
+            providerUserId: canvasId ?? null,
             // 手动生成的 token 没有过期时间，设置为 null 或很远的未来
             expiresAt: null,
             refreshToken: null, // 手动 token 不支持 refresh
@@ -130,7 +141,7 @@ export class AuthService {
           data: {
             userId: user.id,
             provider: 'canvas',
-            providerUserId: providerUserId ?? null,
+            providerUserId: canvasId ?? null,
             accessToken,
             refreshToken: null,
             expiresAt: null, // 手动 token 长期有效
@@ -157,10 +168,13 @@ export class AuthService {
     // Create or get test user
     const user = await this.prisma.user.upsert({
       where: { email: 'test@example.com' },
-      update: {},
+      update: {
+        canvasId: 'test_canvas_user',
+      },
       create: {
         email: 'test@example.com',
         name: 'Test User',
+        canvasId: 'test_canvas_user',
       },
     });
 
@@ -182,6 +196,7 @@ export class AuthService {
         data: {
           userId: user.id,
           provider: 'canvas',
+          providerUserId: user.canvasId,
           accessToken: mockAccessToken,
           expiresAt: addSeconds(new Date(), 3600),
         },
@@ -224,6 +239,7 @@ export class AuthService {
         data: {
           userId: user.id,
           provider: 'canvas',
+          providerUserId: user.canvasId,
           accessToken: mockAccessToken,
           expiresAt: addSeconds(new Date(), 3600),
         },

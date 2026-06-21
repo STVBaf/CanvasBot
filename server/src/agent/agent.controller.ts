@@ -5,27 +5,165 @@ import {
     Headers, 
     UnauthorizedException, 
     BadRequestException,
+    HttpException,
     Logger,
     Param,
     UseInterceptors,
     UploadedFile,
   } from '@nestjs/common';
   import { FileInterceptor } from '@nestjs/platform-express';
+  import { createHash } from 'crypto';
   import { AgentService } from './agent.service';
   import { CanvasService } from '../canvas/canvas.service';
   import { AssignmentsService } from '../assignments/assignments.service';
   import { FilesService } from '../files/files.service';
+  import { PrismaService } from '../prisma/prisma.service';
   
   @Controller('agent')
   export class AgentController {
     private readonly logger = new Logger(AgentController.name);
+    private readonly agentBuckets = new Map<string, { count: number; resetAt: number }>();
   
     constructor(
       private readonly agentService: AgentService,
       private readonly canvasService: CanvasService,
       private readonly assignmentsService: AssignmentsService,
       private readonly filesService: FilesService,
+      private readonly prisma: PrismaService,
     ) {}
+
+    private validateBotId(botId?: string): string | undefined {
+      if (!botId) return undefined;
+
+      const allowedBotIds = new Set(
+        [
+          process.env.COZE_BOT_ID,
+          process.env.COZE_PPT_BOT_ID,
+          ...(process.env.COZE_ALLOWED_BOT_IDS?.split(',') ?? []),
+          // Legacy frontend defaults. Keep them server-side so arbitrary Bot IDs are not accepted.
+          '7582959222351167524',
+          '7582988139266998307',
+        ]
+          .map(id => id?.trim())
+          .filter((id): id is string => Boolean(id)),
+      );
+
+      if (!allowedBotIds.has(botId)) {
+        throw new BadRequestException({
+          statusCode: 400,
+          message: 'Bot ID 不在允许列表中',
+          error: 'Bad Request',
+        });
+      }
+
+      return botId;
+    }
+
+    private hashAccessToken(accessToken: string): string {
+      return createHash('sha256').update(accessToken).digest('hex');
+    }
+
+    private async enforceAgentRateLimit(accessToken: string) {
+      const maxRequests = Number(process.env.AGENT_RATE_LIMIT_MAX ?? 20);
+      const windowMs = Number(process.env.AGENT_RATE_LIMIT_WINDOW_MS ?? 60_000);
+      const key = this.hashAccessToken(accessToken);
+      const now = Date.now();
+      const bucket = this.agentBuckets.get(key);
+
+      if (!bucket || bucket.resetAt <= now) {
+        this.agentBuckets.set(key, { count: 1, resetAt: now + windowMs });
+      } else if (bucket.count >= maxRequests) {
+        throw new HttpException({
+          statusCode: 429,
+          message: 'Agent 请求过于频繁，请稍后再试',
+          error: 'Too Many Requests',
+        }, 429);
+      } else {
+        bucket.count += 1;
+      }
+
+      const windowStart = new Date(now - windowMs);
+      const persistedCount = await this.prisma.agentRequestLog.count({
+        where: {
+          tokenHash: key,
+          createdAt: { gte: windowStart },
+        },
+      });
+
+      if (persistedCount >= maxRequests) {
+        throw new HttpException({
+          statusCode: 429,
+          message: 'Agent 请求配额已用尽，请稍后再试',
+          error: 'Too Many Requests',
+        }, 429);
+      }
+    }
+
+    private async auditAgentRequest(
+      accessToken: string,
+      botId: string | undefined,
+      action: string,
+      status: 'success' | 'failed',
+      durationMs: number,
+      error?: unknown,
+    ) {
+      const message = error instanceof Error ? error.message : String(error ?? '');
+      try {
+        await this.prisma.agentRequestLog.create({
+          data: {
+            tokenHash: this.hashAccessToken(accessToken),
+            botId: botId ?? null,
+            action,
+            status,
+            durationMs,
+            error: status === 'failed' ? message.slice(0, 191) : null,
+          },
+        });
+      } catch (auditError) {
+        this.logger.warn(`Agent audit log failed: ${auditError}`);
+      }
+    }
+
+    private async withAgentAudit<T>(
+      accessToken: string,
+      botId: string | undefined,
+      action: string,
+      handler: () => Promise<T>,
+    ): Promise<T> {
+      const startedAt = Date.now();
+      try {
+        const result = await handler();
+        await this.auditAgentRequest(accessToken, botId, action, 'success', Date.now() - startedAt);
+        return result;
+      } catch (error) {
+        await this.auditAgentRequest(accessToken, botId, action, 'failed', Date.now() - startedAt, error);
+        throw error;
+      }
+    }
+
+    private hasAllowedFileSignature(file: Express.Multer.File): boolean {
+      const name = file.originalname.toLowerCase();
+      const header = file.buffer.subarray(0, 8).toString('hex');
+      const ascii = file.buffer.subarray(0, 8).toString('ascii');
+
+      if (name.match(/\.(txt|md|json)$/i) || file.mimetype.startsWith('text/')) {
+        return true;
+      }
+
+      if (name.endsWith('.pdf') || file.mimetype === 'application/pdf') {
+        return ascii.startsWith('%PDF');
+      }
+
+      if (name.match(/\.(docx|pptx|xlsx)$/i)) {
+        return header.startsWith('504b0304');
+      }
+
+      if (name.match(/\.(doc|ppt|xls)$/i)) {
+        return header.startsWith('d0cf11e0a1b11ae1');
+      }
+
+      return false;
+    }
   
     /**
      * 生成课程 AI 总结
@@ -53,6 +191,8 @@ import {
           error: 'Unauthorized'
         });
       }
+      await this.enforceAgentRateLimit(token);
+      const botId = this.validateBotId(body.botId);
   
       // 2. 验证参数
       if (!body.courseId) {
@@ -63,6 +203,7 @@ import {
         });
       }
   
+      return this.withAgentAudit(token, botId, 'course-summary', async () => {
       try {
         // 3. 如果没有提供文本，则自动收集课程内容
         if (!body.text) {
@@ -71,23 +212,23 @@ import {
           
           // 4. 调用 Agent 生成总结（同时发送文本和文件）
           this.logger.log(`开始生成课程 ${body.courseId} 的 AI 总结 (文本: ${text.length}字符, 文件: ${files.length}个)...`);
-          const summary = await this.agentService.generateSummaryWithFiles(text, files, body.botId);
+          const summary = await this.agentService.generateSummaryWithFiles(text, files, botId);
 
           return {
             content: summary,
             courseId: body.courseId,
-            botId: body.botId,
+            botId,
             generatedAt: new Date().toISOString(),
           };
         } else {
           // 如果提供了文本，使用原来的方法
           this.logger.log(`开始生成课程 ${body.courseId} 的 AI 总结...`);
-          const summary = await this.agentService.generateSummary(body.text, body.botId);
+          const summary = await this.agentService.generateSummary(body.text, botId);
 
           return {
             content: summary,
             courseId: body.courseId,
-            botId: body.botId,
+            botId,
             generatedAt: new Date().toISOString(),
           };
         }
@@ -95,6 +236,7 @@ import {
         this.logger.error(`生成课程总结失败: ${error?.message || error}`, error?.stack);
         throw error;
       }
+      });
     }
   
     /**
@@ -274,7 +416,10 @@ import {
           error: 'Unauthorized'
         });
       }
+      await this.enforceAgentRateLimit(token);
+      const botId = this.validateBotId(body.botId);
 
+      return this.withAgentAudit(token, botId, 'analyze-ppt-file', async () => {
       try {
         // 2. 下载文件内容
         this.logger.log(`开始下载文件 ${fileId}...`);
@@ -313,14 +458,14 @@ import {
           fileInfo.buffer,      // 传递文件 buffer
           fileInfo.fileName,
           fileInfo.contentType || 'application/octet-stream',
-          body.botId           // 传递 botId
+          botId                 // 传递 botId
         );
 
         return {
           content: analysis,
           fileId: fileId,
           fileName: fileInfo.fileName,
-          botId: body.botId,
+          botId,
           analyzedAt: new Date().toISOString(),
         };
       } catch (error: any) {
@@ -334,6 +479,7 @@ import {
           error: 'Internal Server Error'
         });
       }
+      });
     }
 
     /**
@@ -362,6 +508,7 @@ import {
           error: 'Unauthorized'
         });
       }
+      const botId = this.validateBotId(body.botId);
 
       // 2. 验证参数
       if (!body.courseId && !body.fileId) {
@@ -372,6 +519,7 @@ import {
         });
       }
 
+      return this.withAgentAudit(token, botId, 'analyze-ppt-course', async () => {
       try {
         let fileId = body.fileId;
         let fileName = body.fileName;
@@ -443,7 +591,7 @@ import {
           });
         }
 
-        return await this.analyzePPTByFileId(fileId, { botId: body.botId }, authHeader);
+        return await this.analyzePPTByFileId(fileId, { botId }, authHeader);
       } catch (error: any) {
         this.logger.error(`分析PPT失败: ${error?.message || error}`, error?.stack);
         if (error instanceof BadRequestException || error instanceof UnauthorizedException) {
@@ -455,6 +603,7 @@ import {
           error: 'Internal Server Error'
         });
       }
+      });
     }
 
     /**
@@ -489,9 +638,11 @@ import {
           error: 'Unauthorized'
         });
       }
+      await this.enforceAgentRateLimit(token);
+      const botId = this.validateBotId(body.botId);
 
       // 2. 验证参数
-      if (!body.botId) {
+      if (!botId) {
         throw new BadRequestException({
           statusCode: 400,
           message: '缺少 Bot ID',
@@ -507,12 +658,13 @@ import {
         });
       }
 
+      return this.withAgentAudit(token, botId, 'agent-chat', async () => {
       try {
-        this.logger.log(`开始与 Agent ${body.botId} 对话...`);
+        this.logger.log(`开始与 Agent ${botId} 对话...`);
         
         // 3. 调用通用对话方法
         const response = await this.agentService.chatWithBot(
-          body.botId,
+          botId,
           body.message,
           body.fileUrl,
           body.fileName
@@ -520,7 +672,7 @@ import {
 
         return {
           content: response,
-          botId: body.botId,
+          botId,
           message: body.message,
           respondedAt: new Date().toISOString(),
         };
@@ -532,6 +684,7 @@ import {
           error: 'Internal Server Error'
         });
       }
+      });
     }
     /**
      * 通用文件上传并分析
@@ -593,6 +746,8 @@ import {
           error: 'Unauthorized'
         });
       }
+      await this.enforceAgentRateLimit(token);
+      const botId = this.validateBotId(body.botId);
 
       // 2. 验证文件
       if (!file) {
@@ -603,6 +758,15 @@ import {
         });
       }
 
+      if (!this.hasAllowedFileSignature(file)) {
+        throw new BadRequestException({
+          statusCode: 400,
+          message: '文件内容与允许的文件类型不匹配',
+          error: 'Bad Request',
+        });
+      }
+
+      return this.withAgentAudit(token, botId, 'analyze-uploaded-file', async () => {
       try {
         this.logger.log(`收到文件上传: ${file.originalname}, 大小: ${file.size} bytes, 类型: ${file.mimetype}`);
 
@@ -611,7 +775,7 @@ import {
           file.buffer,
           file.originalname,
           file.mimetype,
-          body.botId,
+          botId,
           body.prompt
         );
 
@@ -620,7 +784,7 @@ import {
           fileName: file.originalname,
           fileSize: file.size,
           fileType: file.mimetype,
-          botId: body.botId,
+          botId,
           analyzedAt: new Date().toISOString(),
         };
       } catch (error: any) {
@@ -634,4 +798,5 @@ import {
           error: 'Internal Server Error'
         });
       }
+      });
     }  }

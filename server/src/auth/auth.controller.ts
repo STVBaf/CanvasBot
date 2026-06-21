@@ -1,14 +1,10 @@
-import { Controller, Get, Query, Res, Post, Body } from '@nestjs/common';
+import { Controller, Get, Query, Post, Body, NotFoundException } from '@nestjs/common';
 import { AuthService } from './auth.service';
-import { Response } from 'express';
-import { JwtService } from '@nestjs/jwt';
-import { randomBytes } from 'crypto';
 
 @Controller('auth')
 export class AuthController {
   constructor(
     private readonly auth: AuthService,
-    private readonly jwt: JwtService,
   ) {}
 
   // ========================================
@@ -54,6 +50,7 @@ export class AuthController {
 
   @Get('test-token')
   async testToken(@Query('email') email?: string, @Query('userId') userId?: string) {
+    this.assertDevelopmentRoute();
     // For development: generate JWT token for existing user
     // Usage: /api/auth/test-token?email=user@example.com
     //    or: /api/auth/test-token?userId=user-id
@@ -63,13 +60,21 @@ export class AuthController {
 
   @Get('dev/users')
   async devListUsers() {
+    this.assertDevelopmentRoute();
     // Development only: List all users to find email for testing
     return this.auth.listAllUsers();
   }
 
   @Get('dev/create-test-user')
   async devCreateTestUser() {
+    this.assertDevelopmentRoute();
     // Development only: Create a test user for testing
     return this.auth.createTestUser();
+  }
+
+  private assertDevelopmentRoute() {
+    if (process.env.NODE_ENV === 'production') {
+      throw new NotFoundException();
+    }
   }
 }

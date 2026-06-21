@@ -1,8 +1,7 @@
-import { Injectable, UnauthorizedException, Logger } from '@nestjs/common';
+import { BadGatewayException, Injectable, Logger, ServiceUnavailableException, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
 import { PrismaService } from '../prisma/prisma.service';
-import { addSeconds } from 'date-fns';
 
 @Injectable()
 export class CanvasService {
@@ -15,16 +14,74 @@ export class CanvasService {
 	}
 
 	async getUserProfile(accessToken: string) {
-		const res = await axios.get(`${this.baseUrl}/api/v1/users/self`, {
-			headers: { Authorization: `Bearer ${accessToken}` },
-		});
-		return res.data as { 
-			id?: string; 
-			name?: string; 
-			primary_email?: string; 
-			login_id?: string;
-			avatar_url?: string;
-		};
+		try {
+			const res = await axios.get(`${this.baseUrl}/api/v1/users/self`, {
+				headers: { Authorization: `Bearer ${accessToken}` },
+				timeout: 30000,
+			});
+			return res.data as {
+				id?: string;
+				name?: string;
+				primary_email?: string;
+				login_id?: string;
+				avatar_url?: string;
+			};
+		} catch (error) {
+			throw this.toCanvasHttpException(error, '获取 Canvas 用户信息失败');
+		}
+	}
+
+	private async getPaginated<T = any>(
+		url: string,
+		config: {
+			headers?: Record<string, string>;
+			params?: Record<string, any>;
+			timeout?: number;
+		} = {},
+	): Promise<T[]> {
+		const items: T[] = [];
+		let nextUrl: string | null = url;
+		let params = config.params;
+
+		while (nextUrl) {
+			const res = await axios.get(nextUrl, {
+				...config,
+				params,
+			});
+			const data = Array.isArray(res.data) ? res.data : [res.data];
+			items.push(...data);
+			nextUrl = this.getNextLink(res.headers.link);
+			params = undefined;
+		}
+
+		return items;
+	}
+
+	private getNextLink(linkHeader?: string): string | null {
+		if (!linkHeader) return null;
+
+		const nextPart = linkHeader
+			.split(',')
+			.map(part => part.trim())
+			.find(part => part.includes('rel="next"'));
+
+		const match = nextPart?.match(/<([^>]+)>/);
+		return match?.[1] ?? null;
+	}
+
+	private toCanvasHttpException(error: unknown, fallback: string): Error {
+		if (!axios.isAxiosError(error)) {
+			return error as Error;
+		}
+
+		const status = error.response?.status;
+		if (status === 401 || status === 403) {
+			return new UnauthorizedException('Canvas token 无效或权限不足');
+		}
+		if (status) {
+			return new BadGatewayException(`${fallback}: Canvas API ${status}`);
+		}
+		return new ServiceUnavailableException(`${fallback}: ${error.message}`);
 	}
 
 	getAuthorizeUrl(state: string) {
@@ -123,7 +180,7 @@ export class CanvasService {
 		this.logger.log(`正在从 Canvas 获取课程列表: ${url}`);
 
 		try {
-			const res = await axios.get(url, {
+			const courses = await this.getPaginated(url, {
 				headers: { Authorization: `Bearer ${cleanToken}` },
 				params: {
 					enrollment_state: 'active',  // 只获取激活的课程
@@ -132,8 +189,8 @@ export class CanvasService {
 				},
 				timeout: 30000, // 30秒超时
 			});
-			this.logger.log(`成功获取 ${res.data.length} 门课程`);
-			return res.data;
+			this.logger.log(`成功获取 ${courses.length} 门课程`);
+			return courses;
 		} catch (error) {
 			if (axios.isAxiosError(error)) {
 				if (error.code === 'ECONNREFUSED') {
@@ -162,7 +219,7 @@ export class CanvasService {
 		const cleanToken = accessToken.trim();
 		
 		try {
-			const res = await axios.get(`${this.baseUrl}/api/v1/courses/${courseId}/files`, {
+			const files = await this.getPaginated(`${this.baseUrl}/api/v1/courses/${courseId}/files`, {
 				headers: { Authorization: `Bearer ${cleanToken}` },
 				params: {
 					per_page: 100,  // 每页100个文件
@@ -171,8 +228,8 @@ export class CanvasService {
 				}
 			});
 			
-			this.logger.log(`Successfully fetched ${res.data.length} files from course ${courseId}`);
-			return res.data;
+			this.logger.log(`Successfully fetched ${files.length} files from course ${courseId}`);
+			return files;
 		} catch (error) {
 			if (axios.isAxiosError(error)) {
 				this.logger.error(`Failed to fetch course files: ${error.response?.status} - ${error.message}`);
@@ -285,22 +342,23 @@ export class CanvasService {
 		const cleanToken = accessToken.trim();
 		
 		try {
-			const res = await axios.get(`${this.baseUrl}/api/v1/courses/${courseId}/assignments`, {
+			const assignments = await this.getPaginated(`${this.baseUrl}/api/v1/courses/${courseId}/assignments`, {
 				headers: { Authorization: `Bearer ${cleanToken}` },
 				params: {
 					per_page: 100,
 					order_by: 'due_at',
 					include: ['submission']  // 包含提交状态
-				}
+				},
+				timeout: 15000,
 			});
 			
-			this.logger.log(`Successfully fetched ${res.data.length} assignments from course ${courseId}`);
-			return res.data;
+			this.logger.log(`Successfully fetched ${assignments.length} assignments from course ${courseId}`);
+			return assignments;
 		} catch (error) {
 			if (axios.isAxiosError(error)) {
 				this.logger.error(`Failed to fetch assignments: ${error.response?.status} - ${error.message}`);
 			}
-			throw error;
+			throw this.toCanvasHttpException(error, `获取课程 ${courseId} 作业失败`);
 		}
 	}
 
@@ -311,19 +369,20 @@ export class CanvasService {
 		const cleanToken = accessToken.trim();
 		
 		try {
-			const res = await axios.get(`${this.baseUrl}/api/v1/users/self/upcoming_events`, {
+			const events = await this.getPaginated(`${this.baseUrl}/api/v1/users/self/upcoming_events`, {
 				headers: { Authorization: `Bearer ${cleanToken}` },
+				timeout: 15000,
 			});
 			
 			// 过滤出作业类型的事件
-			const assignments = res.data.filter((event: any) => event.type === 'assignment');
+			const assignments = events.filter((event: any) => event.type === 'assignment');
 			this.logger.log(`Successfully fetched ${assignments.length} upcoming assignments`);
 			return assignments;
 		} catch (error) {
 			if (axios.isAxiosError(error)) {
 				this.logger.error(`Failed to fetch upcoming assignments: ${error.response?.status} - ${error.message}`);
 			}
-			throw error;
+			throw this.toCanvasHttpException(error, '获取即将到期作业失败');
 		}
 	}
 
@@ -340,7 +399,8 @@ export class CanvasService {
 					headers: { Authorization: `Bearer ${cleanToken}` },
 					params: {
 						include: ['submission']
-					}
+					},
+					timeout: 15000,
 				}
 			);
 			return res.data;
@@ -348,7 +408,7 @@ export class CanvasService {
 			if (axios.isAxiosError(error)) {
 				this.logger.error(`Failed to fetch assignment detail: ${error.response?.status} - ${error.message}`);
 			}
-			throw error;
+			throw this.toCanvasHttpException(error, `获取作业 ${assignmentId} 详情失败`);
 		}
 	}
 }

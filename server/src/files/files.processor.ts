@@ -1,16 +1,22 @@
 import { ConfigService } from '@nestjs/config';
 import { QueueEvents, Worker } from 'bullmq';
 import { PrismaService } from '../prisma/prisma.service';
+import { CanvasService } from '../canvas/canvas.service';
 import axios from 'axios';
 import { createWriteStream, mkdirSync } from 'fs';
 import { join, extname } from 'path';
-import { Injectable, OnModuleInit } from '@nestjs/common';
+import { Transform } from 'stream';
+import { pipeline } from 'stream/promises';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 
 @Injectable()
 export class FilesProcessor implements OnModuleInit {
+  private readonly logger = new Logger(FilesProcessor.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
+    private readonly canvas: CanvasService,
   ) {}
 
   async onModuleInit() {
@@ -18,61 +24,89 @@ export class FilesProcessor implements OnModuleInit {
       url: this.config.get<string>('REDIS_URL') ?? 'redis://localhost:6379',
     };
 
-    const worker = new Worker(
+    new Worker(
       'file-download',
       async job => {
         if (job.name !== 'download') return;
 
-        const fileMeta = await this.prisma.fileMeta.findUnique({
-          where: { id: job.data.fileMetaId },
-        });
+        const fileMeta = await this.findFileMeta(job.data);
         if (!fileMeta) return;
 
         try {
-          // 下载文件（使用 arraybuffer 而不是 stream）
-          const res = await axios.get(fileMeta.downloadUrl, { 
-            responseType: 'arraybuffer',
-            maxContentLength: 100 * 1024 * 1024, // 100MB 限制
+          await this.prisma.fileMeta.update({
+            where: { id: fileMeta.id },
+            data: { status: 'downloading' },
           });
+
+          const userId = job.data.userId ?? fileMeta.userId;
+          const canvasFileId = job.data.canvasFileId ?? fileMeta.canvasFileId;
+          const accessToken = await this.canvas.getAccessTokenForUser(userId);
+          const fileInfo = await this.canvas.getFileInfo(accessToken, canvasFileId);
+          const downloadUrl = fileInfo.url || fileMeta.downloadUrl;
+          const fileName = fileInfo.display_name || fileInfo.filename || fileMeta.fileName;
+          const contentType = fileInfo['content-type'] || fileInfo.content_type || fileMeta.contentType;
+          const maxBytes = this.getMaxDownloadBytes();
+          const expectedSize = Number(fileInfo.size ?? fileMeta.fileSize);
+          if (Number.isFinite(expectedSize) && expectedSize > maxBytes) {
+            throw new Error(`Canvas file ${canvasFileId} exceeds download limit (${expectedSize} > ${maxBytes})`);
+          }
+          if (!downloadUrl) {
+            throw new Error(`Canvas file ${canvasFileId} has no download URL`);
+          }
+
+          const res = await axios.get(downloadUrl, {
+            headers: { Authorization: `Bearer ${accessToken.trim()}` },
+            responseType: 'stream',
+            timeout: 120000,
+            maxBodyLength: 100 * 1024 * 1024,
+          });
+
+          const contentLength = Number(res.headers['content-length']);
+          if (Number.isFinite(contentLength) && contentLength > maxBytes) {
+            throw new Error(`Canvas file ${canvasFileId} response exceeds download limit (${contentLength} > ${maxBytes})`);
+          }
 
           const dir = this.config.get<string>('FILE_STORAGE_DIR') ?? './files';
           mkdirSync(dir, { recursive: true });
           
           // 使用原始文件名而不是 .bin
           // 从 fileName 提取扩展名，如果没有则从 URL 或 contentType 推断
-          const ext = extname(fileMeta.fileName) || this.guessExtension(fileMeta.contentType);
-          const sanitizedName = fileMeta.fileName.replace(/[^a-zA-Z0-9._-]/g, '_');
+          const ext = extname(fileName) || this.guessExtension(contentType);
+          let sanitizedName = fileName.replace(/[^a-zA-Z0-9._-]/g, '_');
+          if (!extname(sanitizedName) && ext) {
+            sanitizedName += ext;
+          }
           const path = join(dir, `${fileMeta.id}_${sanitizedName}`);
-          
-          // 直接写入 buffer
-          const writer = createWriteStream(path);
-          writer.write(Buffer.from(res.data));
-          writer.end();
 
-          await new Promise<void>((resolve, reject) => {
-            writer.on('finish', () => resolve());
-            writer.on('error', err => reject(err));
-          });
+          await pipeline(res.data, this.createByteLimitStream(maxBytes), createWriteStream(path));
+
+          const fileSize = Number.isFinite(contentLength) && contentLength > 0
+            ? contentLength
+            : fileInfo.size ?? fileMeta.fileSize;
 
           await this.prisma.fileMeta.update({
             where: { id: fileMeta.id },
             data: { 
+              fileName,
+              downloadUrl,
+              contentType,
               localPath: path, 
               status: 'downloaded',
-              fileSize: res.data.byteLength,
+              fileSize,
             },
           });
           
-          console.log(`File downloaded successfully: ${fileMeta.fileName}`);
+          this.logger.log(`File downloaded successfully: ${fileName}`);
         } catch (error) {
-          console.error(`Failed to download file ${fileMeta.fileName}:`, error);
+          this.logger.error(`Failed to download file ${fileMeta.fileName}: ${error}`);
           await this.prisma.fileMeta.update({
             where: { id: fileMeta.id },
             data: { status: 'failed' },
           });
+          throw error;
         }
       },
-      { connection: connectionOptions },
+      { connection: connectionOptions, concurrency: 2 },
     );
 
     const events = new QueueEvents('file-download', { connection: connectionOptions });
@@ -84,6 +118,48 @@ export class FilesProcessor implements OnModuleInit {
   /**
    * 根据 content type 推断文件扩展名
    */
+  private async findFileMeta(jobData: any) {
+    if (jobData.userId && jobData.canvasFileId) {
+      return this.prisma.fileMeta.findUnique({
+        where: {
+          userId_canvasFileId: {
+            userId: jobData.userId,
+            canvasFileId: jobData.canvasFileId,
+          },
+        },
+      });
+    }
+
+    if (jobData.fileMetaId) {
+      return this.prisma.fileMeta.findUnique({
+        where: { id: jobData.fileMetaId },
+      });
+    }
+
+    return null;
+  }
+
+  private getMaxDownloadBytes(): number {
+    const configured = Number(this.config.get<string>('FILE_DOWNLOAD_MAX_BYTES'));
+    return Number.isFinite(configured) && configured > 0
+      ? configured
+      : 100 * 1024 * 1024;
+  }
+
+  private createByteLimitStream(maxBytes: number): Transform {
+    let total = 0;
+    return new Transform({
+      transform(chunk, _encoding, callback) {
+        total += Buffer.byteLength(chunk);
+        if (total > maxBytes) {
+          callback(new Error(`Download exceeded ${maxBytes} bytes`));
+          return;
+        }
+        callback(null, chunk);
+      },
+    });
+  }
+
   private guessExtension(contentType?: string | null): string {
     if (!contentType) return '';
     

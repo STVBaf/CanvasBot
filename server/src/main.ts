@@ -37,9 +37,10 @@ async function bootstrap() {
 				callback(null, true);
 			} else {
 				logger.warn(`CORS阻止了来自 ${origin} 的请求`);
-				// 生产环境应该拒绝，开发环境可以允许
-				const isDev = process.env.NODE_ENV !== 'production';
-				callback(null, isDev);
+				const allowUnlistedDevOrigins =
+					process.env.NODE_ENV !== 'production' &&
+					process.env.ALLOW_UNLISTED_DEV_ORIGINS === 'true';
+				callback(null, allowUnlistedDevOrigins);
 			}
 		},
 		credentials: true,
@@ -55,7 +56,10 @@ async function bootstrap() {
 		});
 	}
 
-	app.useGlobalPipes(new ValidationPipe());
+	app.useGlobalPipes(new ValidationPipe({
+		transform: true,
+		whitelist: true,
+	}));
 	await app.listen(process.env.PORT ? Number(process.env.PORT) : 3000);
 	logger.log(`Listening on http://localhost:${process.env.PORT ?? 3000}/api`);
 }
