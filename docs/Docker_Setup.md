@@ -20,8 +20,8 @@ docker-compose up -d
 ```
 
 这会启动：
-- MySQL 8.0 (端口 3307)
-- Redis 7 (端口 6379)
+- MySQL 8.0 (`127.0.0.1:3307`)
+- Redis 7 (`127.0.0.1:6379`)
 
 ### 2. 查看服务状态
 
@@ -32,8 +32,8 @@ docker-compose ps
 输出示例：
 ```
 NAME            IMAGE           PORTS                    STATUS
-canvas-mysql    mysql:8.0       0.0.0.0:3307->3306/tcp   Up (healthy)
-canvas-redis    redis:7-alpine  0.0.0.0:6379->6379/tcp   Up (healthy)
+canvas-mysql    mysql:8.0       127.0.0.1:3307->3306/tcp Up (healthy)
+canvas-redis    redis:7-alpine  127.0.0.1:6379->6379/tcp Up (healthy)
 ```
 
 ### 3. 查看服务日志
@@ -81,7 +81,7 @@ docker-compose down -v
 
 ### MySQL 配置
 
-- **端口**：3307（映射到容器的 3306）
+- **端口**：127.0.0.1:3307（映射到容器的 3306）
 - **用户名**：root
 - **密码**：password
 - **数据库**：canvas_helper
@@ -89,7 +89,7 @@ docker-compose down -v
 
 ### Redis 配置
 
-- **端口**：6379
+- **端口**：127.0.0.1:6379
 - **连接字符串**：`redis://localhost:6379`
 
 ## 数据持久化
@@ -135,8 +135,8 @@ redis-cli -p 6379 ping
 
 ```yaml
 ports:
-  - "3308:3306"  # 将 MySQL 改为 3308
-  - "6380:6379"  # 将 Redis 改为 6380
+  - "127.0.0.1:3308:3306"  # 将 MySQL 改为 3308
+  - "127.0.0.1:6380:6379"  # 将 Redis 改为 6380
 ```
 
 然后同步修改 `server/.env` 中的连接字符串。
@@ -185,9 +185,10 @@ docker cp canvas-redis:/data/dump.rdb ./redis-backup.rdb
 ## 生产环境建议
 
 1. **修改默认密码**：在 `docker-compose.yml` 中修改 `MYSQL_ROOT_PASSWORD`
-2. **启用 Redis 持久化**：添加 `appendonly yes` 配置
-3. **设置资源限制**：添加 `mem_limit` 和 `cpus` 配置
-4. **使用环境变量**：敏感信息使用 `.env` 文件管理
+2. **不要公开数据库端口**：保持 `127.0.0.1:3307:3306` 和 `127.0.0.1:6379:6379`
+3. **启用 Redis 持久化**：添加 `appendonly yes` 配置
+4. **设置资源限制**：添加 `mem_limit` 和 `cpus` 配置
+5. **使用环境变量**：敏感信息使用 `.env` 文件管理
 
 示例：
 

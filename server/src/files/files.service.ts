@@ -1,7 +1,8 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, PayloadTooLargeException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CanvasService } from '../canvas/canvas.service';
 import { Queue } from 'bullmq';
+import { Transform } from 'stream';
 
 @Injectable()
 export class FilesService {
@@ -160,14 +161,30 @@ export class FilesService {
   async downloadSingleFile(accessToken: string, fileId: string) {
     // 1. 获取文件信息
     const fileInfo = await this.canvas.getFileInfo(accessToken, fileId);
+    const maxBytes = this.getMaxDownloadBytes();
+    this.assertFileSizeWithinLimit(fileInfo.size, maxBytes);
     
     // 2. 下载文件内容
-    const fileBuffer = await this.canvas.downloadFile(accessToken, fileInfo.url);
+    const fileBuffer = await this.canvas.downloadFile(accessToken, fileInfo.url, maxBytes);
     
     return {
       buffer: fileBuffer,
       fileName: fileInfo.display_name || fileInfo.filename,
       contentType: fileInfo['content-type'] || fileInfo.content_type,
+      size: fileInfo.size,
+    };
+  }
+
+  async openSingleFileDownloadStream(accessToken: string, fileId: string) {
+    const fileInfo = await this.canvas.getFileInfo(accessToken, fileId);
+    const maxBytes = this.getMaxDownloadBytes();
+    this.assertFileSizeWithinLimit(fileInfo.size, maxBytes);
+    const res = await this.canvas.downloadFileStream(accessToken, fileInfo.url, maxBytes);
+
+    return {
+      stream: res.data.pipe(this.createByteLimitStream(maxBytes)),
+      fileName: fileInfo.display_name || fileInfo.filename || `canvas-file-${fileId}`,
+      contentType: fileInfo['content-type'] || fileInfo.content_type || 'application/octet-stream',
       size: fileInfo.size,
     };
   }
@@ -240,5 +257,33 @@ export class FilesService {
     });
 
     return file;
+  }
+
+  private getMaxDownloadBytes(): number {
+    const configured = Number(process.env.FILE_DOWNLOAD_MAX_BYTES);
+    return Number.isFinite(configured) && configured > 0
+      ? configured
+      : 100 * 1024 * 1024;
+  }
+
+  private assertFileSizeWithinLimit(size: unknown, maxBytes: number) {
+    const expectedSize = Number(size);
+    if (Number.isFinite(expectedSize) && expectedSize > maxBytes) {
+      throw new PayloadTooLargeException(`Canvas 文件超过下载上限 (${expectedSize} > ${maxBytes})`);
+    }
+  }
+
+  private createByteLimitStream(maxBytes: number): Transform {
+    let total = 0;
+    return new Transform({
+      transform(chunk, _encoding, callback) {
+        total += Buffer.byteLength(chunk);
+        if (total > maxBytes) {
+          callback(new Error(`Download exceeded ${maxBytes} bytes`));
+          return;
+        }
+        callback(null, chunk);
+      },
+    });
   }
 }

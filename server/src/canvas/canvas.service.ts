@@ -1,4 +1,4 @@
-import { BadGatewayException, Injectable, Logger, ServiceUnavailableException, UnauthorizedException } from '@nestjs/common';
+import { BadGatewayException, Injectable, Logger, PayloadTooLargeException, ServiceUnavailableException, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
 import { PrismaService } from '../prisma/prisma.service';
@@ -46,6 +46,7 @@ export class CanvasService {
 		while (nextUrl) {
 			const res = await axios.get(nextUrl, {
 				...config,
+				timeout: config.timeout ?? 30000,
 				params,
 			});
 			const data = Array.isArray(res.data) ? res.data : [res.data];
@@ -193,22 +194,9 @@ export class CanvasService {
 			return courses;
 		} catch (error) {
 			if (axios.isAxiosError(error)) {
-				if (error.code === 'ECONNREFUSED') {
-					this.logger.error(`无法连接到 Canvas 服务器: ${this.baseUrl}`);
-					throw new Error(`无法连接到 Canvas 服务器，请检查 CANVAS_BASE_URL 配置和网络连接`);
-				} else if (error.code === 'ETIMEDOUT' || error.code === 'ECONNABORTED') {
-					this.logger.error(`连接 Canvas 超时: ${error.message}`);
-					throw new Error(`连接 Canvas 超时，请检查网络连接`);
-				} else if (error.response) {
-					this.logger.error(`Canvas API 错误: ${error.response.status} - ${JSON.stringify(error.response.data)}`);
-					throw new Error(`Canvas API 错误: ${error.response.status} - ${error.response.data?.message || error.message}`);
-				} else {
-					this.logger.error(`请求失败: ${error.message}`);
-					throw new Error(`请求失败: ${error.message}`);
-				}
+				this.logger.error(`Failed to fetch courses: ${error.response?.status} - ${error.message}`);
 			}
-			this.logger.error(`未知错误: ${error}`);
-			throw error;
+			throw this.toCanvasHttpException(error, '获取课程列表失败');
 		}
 	}
 
@@ -234,7 +222,7 @@ export class CanvasService {
 			if (axios.isAxiosError(error)) {
 				this.logger.error(`Failed to fetch course files: ${error.response?.status} - ${error.message}`);
 			}
-			throw error;
+			throw this.toCanvasHttpException(error, `获取课程 ${courseId} 文件失败`);
 		}
 	}
 
@@ -251,6 +239,7 @@ export class CanvasService {
 				params: {
 					include: ['syllabus_body'],
 				},
+				timeout: 15000,
 			});
 
 			const rawHtml: string = res.data?.syllabus_body || '';
@@ -292,7 +281,7 @@ export class CanvasService {
 			if (axios.isAxiosError(error)) {
 				this.logger.error(`Failed to fetch course syllabus: ${error.response?.status} - ${error.message}`);
 			}
-			throw error;
+			throw this.toCanvasHttpException(error, `获取课程 ${courseId} 大纲失败`);
 		}
 	}
 
@@ -305,33 +294,74 @@ export class CanvasService {
 		try {
 			const res = await axios.get(`${this.baseUrl}/api/v1/files/${fileId}`, {
 				headers: { Authorization: `Bearer ${cleanToken}` },
+				timeout: 15000,
 			});
 			return res.data;
 		} catch (error) {
 			if (axios.isAxiosError(error)) {
 				this.logger.error(`Failed to fetch file info: ${error.response?.status} - ${error.message}`);
 			}
-			throw error;
+			throw this.toCanvasHttpException(error, `获取文件 ${fileId} 信息失败`);
 		}
 	}
 
 	/**
 	 * 下载文件内容
 	 */
-	async downloadFile(accessToken: string, fileUrl: string): Promise<Buffer> {
+	async downloadFile(accessToken: string, fileUrl: string, maxBytes?: number): Promise<Buffer> {
 		const cleanToken = accessToken.trim();
 		
 		try {
 			const res = await axios.get(fileUrl, {
 				headers: { Authorization: `Bearer ${cleanToken}` },
 				responseType: 'arraybuffer',  // 获取二进制数据
+				timeout: 120000,
+				maxContentLength: maxBytes,
+				maxBodyLength: maxBytes,
 			});
+			const contentLength = Number(res.headers['content-length']);
+			if (maxBytes && Number.isFinite(contentLength) && contentLength > maxBytes) {
+				throw new PayloadTooLargeException(`Canvas 文件超过下载上限 (${contentLength} > ${maxBytes})`);
+			}
+			if (maxBytes && Buffer.byteLength(res.data) > maxBytes) {
+				throw new PayloadTooLargeException(`Canvas 文件超过下载上限 (${Buffer.byteLength(res.data)} > ${maxBytes})`);
+			}
 			return Buffer.from(res.data);
 		} catch (error) {
+			if (error instanceof PayloadTooLargeException) {
+				throw error;
+			}
 			if (axios.isAxiosError(error)) {
 				this.logger.error(`Failed to download file: ${error.response?.status} - ${error.message}`);
 			}
-			throw error;
+			throw this.toCanvasHttpException(error, '下载 Canvas 文件失败');
+		}
+	}
+
+	async downloadFileStream(accessToken: string, fileUrl: string, maxBytes?: number) {
+		const cleanToken = accessToken.trim();
+
+		try {
+			const res = await axios.get(fileUrl, {
+				headers: { Authorization: `Bearer ${cleanToken}` },
+				responseType: 'stream',
+				timeout: 120000,
+				maxBodyLength: maxBytes,
+			});
+			const contentLength = Number(res.headers['content-length']);
+			if (maxBytes && Number.isFinite(contentLength) && contentLength > maxBytes) {
+				res.data.destroy();
+				throw new PayloadTooLargeException(`Canvas 文件超过下载上限 (${contentLength} > ${maxBytes})`);
+			}
+			return res;
+		} catch (error) {
+			if (error instanceof PayloadTooLargeException) {
+				throw error;
+			}
+			if (axios.isAxiosError(error)) {
+				this.logger.error(`Failed to open file stream: ${error.response?.status} - ${error.message}`);
+			}
+			throw this.toCanvasHttpException(error, '打开 Canvas 文件下载流失败');
 		}
 	}
 

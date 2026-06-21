@@ -18,11 +18,19 @@ import {
   import { AssignmentsService } from '../assignments/assignments.service';
   import { FilesService } from '../files/files.service';
   import { PrismaService } from '../prisma/prisma.service';
+
+  const getAgentUploadMaxBytes = () => {
+    const configured = Number(process.env.AGENT_UPLOAD_MAX_BYTES);
+    return Number.isFinite(configured) && configured > 0
+      ? configured
+      : 50 * 1024 * 1024;
+  };
   
   @Controller('agent')
   export class AgentController {
     private readonly logger = new Logger(AgentController.name);
     private readonly agentBuckets = new Map<string, { count: number; resetAt: number }>();
+    private lastLogCleanupAt = 0;
   
     constructor(
       private readonly agentService: AgentService,
@@ -64,6 +72,8 @@ import {
     }
 
     private async enforceAgentRateLimit(accessToken: string) {
+      await this.cleanupExpiredAgentLogs();
+
       const maxRequests = Number(process.env.AGENT_RATE_LIMIT_MAX ?? 20);
       const windowMs = Number(process.env.AGENT_RATE_LIMIT_WINDOW_MS ?? 60_000);
       const key = this.hashAccessToken(accessToken);
@@ -96,6 +106,27 @@ import {
           message: 'Agent 请求配额已用尽，请稍后再试',
           error: 'Too Many Requests',
         }, 429);
+      }
+    }
+
+    private async cleanupExpiredAgentLogs() {
+      const retentionDays = Number(process.env.AGENT_LOG_RETENTION_DAYS ?? 90);
+      if (!Number.isFinite(retentionDays) || retentionDays <= 0) return;
+
+      const now = Date.now();
+      if (now - this.lastLogCleanupAt < 60 * 60 * 1000) return;
+      this.lastLogCleanupAt = now;
+
+      const cutoff = new Date(now - retentionDays * 24 * 60 * 60 * 1000);
+      try {
+        const agentRequestLog = (this.prisma as any).agentRequestLog;
+        if (!agentRequestLog?.deleteMany) return;
+
+        await agentRequestLog.deleteMany({
+          where: { createdAt: { lt: cutoff } },
+        });
+      } catch (error) {
+        this.logger.warn(`Agent log cleanup failed: ${error}`);
       }
     }
 
@@ -694,7 +725,7 @@ import {
     @Post('analyze-file')
     @UseInterceptors(FileInterceptor('file', {
       limits: {
-        fileSize: 50 * 1024 * 1024, // 50MB
+        fileSize: getAgentUploadMaxBytes(),
       },
       fileFilter: (req, file, cb) => {
         // 支持的文件类型

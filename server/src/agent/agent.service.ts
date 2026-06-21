@@ -358,11 +358,6 @@ export class AgentService {
     const finalBotId = botId || defaultBotId;
     const baseUrl = process.env.COZE_BASE_URL || 'https://api.coze.cn';
 
-    // 打印 token 的前后几位用于验证（不完整打印保证安全）
-    if (cozeToken) {
-      this.logger.debug(`COZE_API_TOKEN 已加载: ${cozeToken.substring(0, 10)}...${cozeToken.substring(cozeToken.length - 5)}`);
-    }
-
     if (!cozeToken) {
       this.logger.error('❌ 未配置 COZE_API_TOKEN');
       return '（AI 服务配置缺失：缺少 API Token）';
