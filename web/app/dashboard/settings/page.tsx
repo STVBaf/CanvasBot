@@ -44,7 +44,7 @@ export default function SettingsPage() {
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="flex items-start gap-4">
-              <div className="w-16 h-16 bg-primary rounded-2xl flex items-center justify-center text-white font-bold text-3xl shadow-lg shadow-primary/30 flex-shrink-0">
+              <div className="w-16 h-16 bg-primary rounded-2xl flex items-center justify-center text-primary-foreground font-bold text-3xl shadow-lg shadow-primary/30 flex-shrink-0">
                 C
               </div>
               <div>
@@ -57,19 +57,19 @@ export default function SettingsPage() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4">
-              <div className="p-4 bg-gray-50 rounded-xl border border-gray-100">
-                <div className="flex items-center gap-2 text-gray-900 font-medium mb-2">
+              <div className="p-4 bg-secondary rounded-xl border border-border">
+                <div className="flex items-center gap-2 text-foreground font-medium mb-2">
                   <Globe className="w-4 h-4 text-blue-500" />
                   项目主页
                 </div>
-                <p className="text-sm text-gray-500">https://github.com/STVBaf/CanvasEduBot</p>
+                <p className="text-sm text-muted-foreground">https://github.com/STVBaf/CanvasEduBot</p>
               </div>
-              <div className="p-4 bg-gray-50 rounded-xl border border-gray-100">
-                <div className="flex items-center gap-2 text-gray-900 font-medium mb-2">
-                  <Github className="w-4 h-4 text-gray-700" />
+              <div className="p-4 bg-secondary rounded-xl border border-border">
+                <div className="flex items-center gap-2 text-foreground font-medium mb-2">
+                  <Github className="w-4 h-4 text-muted-foreground" />
                   开源协议
                 </div>
-                <p className="text-sm text-gray-500">MIT License</p>
+                <p className="text-sm text-muted-foreground">MIT License</p>
               </div>
             </div>
           </CardContent>
@@ -87,21 +87,21 @@ export default function SettingsPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              <div className="flex items-center justify-between py-3 border-b border-gray-100 last:border-0">
-                <span className="text-gray-600">当前版本</span>
+              <div className="flex items-center justify-between py-3 border-b border-border last:border-0">
+                <span className="text-muted-foreground">当前版本</span>
                 <span className="font-mono font-medium text-primary bg-primary/10 px-3 py-1 rounded-full text-sm">v1.2.0</span>
               </div>
-              <div className="flex items-center justify-between py-3 border-b border-gray-100 last:border-0">
-                <span className="text-gray-600">构建环境</span>
-                <span className="text-gray-900">Production</span>
+              <div className="flex items-center justify-between py-3 border-b border-border last:border-0">
+                <span className="text-muted-foreground">构建环境</span>
+                <span className="text-foreground">Production</span>
               </div>
-              <div className="flex items-center justify-between py-3 border-b border-gray-100 last:border-0">
-                <span className="text-gray-600">最后更新时间</span>
-                <span className="text-gray-900">2025-12-16</span>
+              <div className="flex items-center justify-between py-3 border-b border-border last:border-0">
+                <span className="text-muted-foreground">最后更新时间</span>
+                <span className="text-foreground">2025-12-16</span>
               </div>
-              <div className="flex items-center justify-between py-3 border-b border-gray-100 last:border-0">
-                <span className="text-gray-600">项目地址</span>
-                <span className="text-gray-900">https://github.com/STVBaf/CanvasEduBot</span>
+              <div className="flex items-center justify-between py-3 border-b border-border last:border-0">
+                <span className="text-muted-foreground">项目地址</span>
+                <span className="text-foreground">https://github.com/STVBaf/CanvasEduBot</span>
               </div>
             </div>
           </CardContent>
@@ -118,7 +118,7 @@ export default function SettingsPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-sm text-gray-500 space-y-2">
+            <div className="text-sm text-muted-foreground space-y-2">
               <p>
                 我们非常重视您的隐私保护。CanvasEduBot 仅在您授权的情况下访问您的 Canvas 数据，
                 并且所有敏感数据（如 Access Token）都经过加密存储。

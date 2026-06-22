@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { ThemeProvider } from "@/components/theme-provider";
+import { GlobalAIFab } from "@/components/global-ai-fab";
 
 export const metadata: Metadata = {
   title: "Canvas智能助手",
@@ -19,14 +21,20 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
-      <body 
-        className="antialiased flex flex-col min-h-screen"
-      >
-        <main className="flex-grow">{children}</main>
-        <footer className="border-t py-4 px-6 text-center text-sm text-gray-500">
-          © 猪头Canvas会不会遇上Agent学姐 | 基于 Canvas 开发
-        </footer>
+    <html lang="en" suppressHydrationWarning>
+      <body className="antialiased flex flex-col min-h-screen">
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          <main className="flex-grow bg-background text-foreground">{children}</main>
+          <GlobalAIFab />
+          <footer className="border-t py-4 px-6 text-center text-sm text-muted-foreground bg-background">
+            © 猪头Canvas会不会遇上Agent学姐 | 基于 Canvas 开发
+          </footer>
+        </ThemeProvider>
       </body>
     </html>
   );

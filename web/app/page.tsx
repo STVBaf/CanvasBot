@@ -19,11 +19,11 @@ export default function Home() {
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-background">
-      <div className="text-center space-y-6 w-96 p-8 bg-white rounded-3xl shadow-sm">
+      <div className="text-center space-y-6 w-96 p-8 bg-card rounded-3xl shadow-sm">
         <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 overflow-hidden">
-          <img 
-            src="/icon/CanvasEduBotIcon.png" 
-            alt="Canvas Logo" 
+          <img
+            src="/icon/CanvasEduBotIcon.png"
+            alt="Canvas Logo"
             className="w-full h-full object-cover"
           />
         </div>
@@ -34,7 +34,7 @@ export default function Home() {
           value={token}
           onChange={(e) => setToken(e.target.value)}
           placeholder="请粘贴 Canvas Access Token"
-          className="w-full px-4 py-3 bg-gray-50 border-none rounded-2xl focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+          className="w-full px-4 py-3 bg-secondary border-none rounded-2xl focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all text-foreground placeholder:text-muted-foreground"
         />
         <button
           onClick={saveToken}

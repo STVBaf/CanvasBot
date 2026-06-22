@@ -177,15 +177,15 @@ export default function DashboardPage() {
               placeholder="搜索课程或资料..." 
               value={searchQuery || ''}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 pr-4 py-3 rounded-full bg-white border-none shadow-sm w-64 focus:outline-none focus:ring-2 focus:ring-primary/20" 
+              className="pl-10 pr-4 py-3 rounded-full bg-card border-none shadow-sm w-64 focus:outline-none focus:ring-2 focus:ring-primary/20"
             />
-            <svg className="w-5 h-5 text-gray-400 absolute left-3 top-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-5 h-5 text-muted-foreground absolute left-3 top-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
             </svg>
             {searchQuery && (
-              <button 
+              <button
                 onClick={() => setSearchQuery('')}
-                className="absolute right-3 top-3.5 text-gray-400 hover:text-gray-600"
+                className="absolute right-3 top-3.5 text-muted-foreground hover:text-foreground"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
@@ -214,7 +214,7 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-8">
           <motion.div variants={item}>
-            <Card className="bg-[#e8e6df] border-none overflow-hidden relative rounded-[2rem]">
+            <Card className="bg-[#e8e6df] text-neutral-900 border-none overflow-hidden relative rounded-[2rem]">
               <CardContent className="p-8 flex flex-col md:flex-row items-center justify-between relative z-10">
                 <div className="space-y-4 max-w-md">
                   <div className="inline-block px-3 py-1 rounded-full bg-black/5 text-xs font-bold uppercase tracking-wider">今日概览</div>
@@ -268,29 +268,29 @@ export default function DashboardPage() {
         {loading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {[1, 2, 3, 4].map((i) => (
-              <Card key={i} className="h-48 animate-pulse bg-gray-100 rounded-[2rem]" />
+              <Card key={i} className="h-48 animate-pulse bg-muted rounded-[2rem]" />
             ))}
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {(searchQuery ? filteredCourses : courses.slice(0, 4)).map((course, index) => (
               <Link href={`/dashboard/courses/${course.id}`} key={course.id}>
-                <Card className="group hover:shadow-lg transition-all duration-300 cursor-pointer bg-white border-none rounded-[2rem] relative overflow-hidden h-full">
+                <Card className="group hover:shadow-lg transition-all duration-300 cursor-pointer bg-card border-none rounded-[2rem] relative overflow-hidden h-full">
                   <CardContent className="p-8">
                     <div className="flex justify-between items-start mb-6">
                       <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-2xl ${getCourseColor(index)}`}>
                         <BookOpen className="w-7 h-7" />
                       </div>
-                      <span className="bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-xs font-bold tracking-wide">
+                      <span className="bg-secondary text-muted-foreground px-3 py-1 rounded-full text-xs font-bold tracking-wide">
                         {course.course_code || 'NO CODE'}
                       </span>
                     </div>
-                    
+
                     <div className="space-y-2 mb-8">
-                      <h3 className="font-bold text-xl text-gray-900 line-clamp-1 group-hover:text-primary transition-colors">
+                      <h3 className="font-bold text-xl text-foreground line-clamp-1 group-hover:text-primary transition-colors">
                         {course.name}
                       </h3>
-                      <div className="flex items-center gap-2 text-sm text-gray-400">
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
                         <CalendarIcon className="w-4 h-4" />
                         <span>2025-2026学年第1学期</span>
                       </div>
@@ -299,12 +299,12 @@ export default function DashboardPage() {
                     <div className="flex items-center justify-between mt-auto">
                       <div className="flex gap-2">
                         {['S1', 'S2', 'S3'].map((tag) => (
-                          <span key={tag} className="w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center text-xs font-bold text-gray-400">
+                          <span key={tag} className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center text-xs font-bold text-muted-foreground">
                             {tag}
                           </span>
                         ))}
                       </div>
-                      <div className="w-10 h-10 rounded-full bg-black text-white flex items-center justify-center transform group-hover:scale-110 transition-transform duration-300">
+                      <div className="w-10 h-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center transform group-hover:scale-110 transition-transform duration-300">
                         <ArrowRight className="w-5 h-5" />
                       </div>
                     </div>
@@ -319,7 +319,7 @@ export default function DashboardPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <motion.div variants={item}>
               <div className="flex justify-between items-center mb-6"><h2 className="text-xl font-bold">学习小组</h2><Link href="/dashboard/groups" className="text-sm font-medium text-muted-foreground hover:text-primary flex items-center gap-1">查看全部 <ArrowRight className="w-4 h-4" /></Link></div>
-              <div className="space-y-3">{loading ? <Loader2 className="animate-spin" /> : myGroups.length > 0 ? (myGroups.slice(0, 3).map((group) => (<Link href="/dashboard/groups" key={group.id}><Card className="bg-white hover:bg-gray-50 transition-colors cursor-pointer border-none shadow-sm"><CardContent className="p-4 flex items-center justify-between"><div className="flex items-center gap-3"><div className="w-10 h-10 rounded-full flex items-center justify-center bg-indigo-50 text-indigo-600"><Users className="w-5 h-5" /></div><div><h4 className="font-bold text-sm text-gray-900">{group.name}</h4><p className="text-xs text-muted-foreground">{group.memberCount} 位成员</p></div></div>{getRoleBadge(group)}</CardContent></Card></Link>))) : <div className="text-center py-8 text-gray-400 text-sm bg-white rounded-2xl">暂未加入任何小组</div>}</div>
+              <div className="space-y-3">{loading ? <Loader2 className="animate-spin" /> : myGroups.length > 0 ? (myGroups.slice(0, 3).map((group) => (<Link href="/dashboard/groups" key={group.id}><Card className="bg-card hover:bg-secondary transition-colors cursor-pointer border-none shadow-sm"><CardContent className="p-4 flex items-center justify-between"><div className="flex items-center gap-3"><div className="w-10 h-10 rounded-full flex items-center justify-center bg-indigo-50 text-indigo-600"><Users className="w-5 h-5" /></div><div><h4 className="font-bold text-sm text-foreground">{group.name}</h4><p className="text-xs text-muted-foreground">{group.memberCount} 位成员</p></div></div>{getRoleBadge(group)}</CardContent></Card></Link>))) : <div className="text-center py-8 text-muted-foreground text-sm bg-card rounded-2xl">暂未加入任何小组</div>}</div>
             </motion.div>
             <motion.div variants={item}>
               <h2 className="text-xl font-bold mb-6">个人知识库</h2>
@@ -329,7 +329,7 @@ export default function DashboardPage() {
         </div>
         <div className="space-y-8">
           <motion.div variants={item}>
-            <Card className="bg-white sticky top-8 rounded-[2rem] border-none shadow-sm">
+            <Card className="bg-card sticky top-8 rounded-[2rem] border-none shadow-sm">
               <CardHeader className="pb-2 pt-6 px-6">
                 <CardTitle className="text-lg flex items-center gap-2">
                   <CalendarIcon className="w-5 h-5" /> 日历视图
@@ -362,31 +362,31 @@ export default function DashboardPage() {
                       <div 
                         key={i} 
                         className={`
-                          aspect-square flex flex-col items-center justify-center rounded-full text-sm cursor-pointer hover:bg-gray-100 relative group
-                          ${isToday ? 'bg-black text-white hover:bg-black' : ''}
+                          aspect-square flex flex-col items-center justify-center rounded-full text-sm cursor-pointer hover:bg-secondary relative group
+                          ${isToday ? 'bg-primary text-primary-foreground hover:bg-primary' : ''}
                           ${hasDeadline && !isToday ? 'font-bold text-orange-600' : ''}
                         `}
                       >
                         {day}
                         {hasDeadline && (
                           <>
-                            <div className={`w-1 h-1 rounded-full mt-0.5 ${isToday ? 'bg-white' : 'bg-orange-500'}`} />
-                            
+                            <div className={`w-1 h-1 rounded-full mt-0.5 ${isToday ? 'bg-primary-foreground' : 'bg-orange-500'}`} />
+
                             {/* Tooltip for assignments */}
-                            <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 w-48 bg-white shadow-xl rounded-xl p-3 hidden group-hover:block z-50 border border-gray-100 text-left pointer-events-none">
-                              <div className="text-xs font-bold text-gray-900 mb-2 border-b border-gray-100 pb-2">
+                            <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 w-48 bg-card shadow-xl rounded-xl p-3 hidden group-hover:block z-50 border border-border text-left pointer-events-none">
+                              <div className="text-xs font-bold text-foreground mb-2 border-b border-border pb-2">
                                 {new Date().getMonth() + 1}月{day}日截止 ({dayAssignments.length})
                               </div>
                               <div className="space-y-2">
                                 {dayAssignments.map((a, idx) => (
                                   <div key={`${a.id}-${idx}`} className="text-xs">
-                                    <div className="font-medium text-gray-900 truncate" title={a.name}>{a.name}</div>
-                                    <div className="text-gray-500 text-[10px] truncate">{a.courseName || getCourseName(a.courseId)}</div>
+                                    <div className="font-medium text-foreground truncate" title={a.name}>{a.name}</div>
+                                    <div className="text-muted-foreground text-[10px] truncate">{a.courseName || getCourseName(a.courseId)}</div>
                                   </div>
                                 ))}
                               </div>
                               {/* Arrow */}
-                              <div className="absolute top-full left-1/2 transform -translate-x-1/2 -mt-1 border-4 border-transparent border-t-white"></div>
+                              <div className="absolute top-full left-1/2 transform -translate-x-1/2 -mt-1 border-4 border-transparent border-t-card"></div>
                             </div>
                           </>
                         )}
@@ -394,15 +394,15 @@ export default function DashboardPage() {
                     );
                   })}
                 </div>
-                <div className="space-y-4 mt-6 pt-6 border-t border-gray-100">
+                <div className="space-y-4 mt-6 pt-6 border-t border-border">
                   <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wider">即将截止 (3天内)</h3>
                   {loading ? <Loader2 className="animate-spin" /> : urgentDeadlines.length > 0 ? (
                     urgentDeadlines.map((item) => (
                       <Link href={`/dashboard/courses/${item.courseId}`} key={item.id} className="block">
-                        <div className="flex items-start gap-3 p-3 rounded-2xl bg-gray-50 hover:bg-orange-50 transition-colors group cursor-pointer">
+                        <div className="flex items-start gap-3 p-3 rounded-2xl bg-secondary hover:bg-orange-50 transition-colors group cursor-pointer">
                           <div className="w-2 h-2 mt-2 rounded-full bg-red-500 flex-shrink-0"></div>
                           <div className="overflow-hidden">
-                            <p className="text-sm font-bold text-gray-900 truncate">{item.name}</p>
+                            <p className="text-sm font-bold text-foreground truncate">{item.name}</p>
                             <p className="text-xs text-muted-foreground group-hover:text-orange-700 truncate">{item.courseName || getCourseName(item.courseId)} • {formatDueDate(item.dueAt)}</p>
                           </div>
                         </div>
