@@ -57,6 +57,21 @@ export class GroupsService {
     return user;
   }
 
+  private async getAccessibleCourseIds(accessToken: string): Promise<string[]> {
+    const courses = await this.canvas.getCourses(accessToken);
+    return courses
+      .map((course: any) => course?.id)
+      .filter((id: any) => id !== undefined && id !== null)
+      .map((id: any) => String(id));
+  }
+
+  private async assertCanAccessCourse(accessToken: string, courseId: string) {
+    const courseIds = await this.getAccessibleCourseIds(accessToken);
+    if (!courseIds.includes(String(courseId))) {
+      throw new ForbiddenException('无权访问该课程的小组');
+    }
+  }
+
   /**
    * 创建小组
    */
@@ -70,6 +85,7 @@ export class GroupsService {
     }
   ) {
     const user = await this.getUserByToken(accessToken);
+    await this.assertCanAccessCourse(accessToken, data.courseId);
 
     // 创建小组
     const group = await this.prisma.group.create({
@@ -183,10 +199,16 @@ export class GroupsService {
    */
   async getAllGroups(accessToken: string) {
     const user = await this.getUserByToken(accessToken); // 验证用户登录
+    const courseIds = await this.getAccessibleCourseIds(accessToken);
+
+    if (courseIds.length === 0) {
+      return [];
+    }
 
     const groups = await this.prisma.group.findMany({
       where: {
         isActive: true,
+        courseId: { in: courseIds },
       },
       include: {
         creator: {
@@ -248,6 +270,7 @@ export class GroupsService {
    */
   async getCourseGroups(accessToken: string, courseId: string) {
     await this.getUserByToken(accessToken); // 验证用户登录
+    await this.assertCanAccessCourse(accessToken, courseId);
 
     const groups = await this.prisma.group.findMany({
       where: {
@@ -344,6 +367,7 @@ export class GroupsService {
     if (!group) {
       throw new NotFoundException('小组不存在');
     }
+    await this.assertCanAccessCourse(accessToken, group.courseId);
 
     const isMember = group.members.some(m => m.userId === user.id);
 
@@ -388,6 +412,7 @@ export class GroupsService {
     if (!group.isActive) {
       throw new BadRequestException('该小组已关闭，无法加入');
     }
+    await this.assertCanAccessCourse(accessToken, group.courseId);
 
     // 检查是否已经是成员
     const existingMember = await this.prisma.groupMember.findUnique({

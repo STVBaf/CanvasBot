@@ -20,6 +20,11 @@ export class FilesProcessor implements OnModuleInit {
   ) {}
 
   async onModuleInit() {
+    if (this.config.get<string>('FILE_WORKER_ENABLED') === 'false') {
+      this.logger.warn('File download worker is disabled by FILE_WORKER_ENABLED=false');
+      return;
+    }
+
     const connectionOptions = {
       url: this.config.get<string>('REDIS_URL') ?? 'redis://localhost:6379',
     };

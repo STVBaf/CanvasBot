@@ -19,7 +19,7 @@
 - 部署：Docker Compose（MySQL/Redis），PM2
 
 ## 前置条件
-- Node.js 18+
+- Node.js 20.9+（前端使用 Next 16）
 - pnpm/npm 可用
 - Docker & Docker Compose（用于本地 MySQL/Redis）
 - 一个可用的 Canvas Access Token
@@ -49,6 +49,7 @@ JWT_SECRET=dev-secret
 cd server
 npm install
 npx prisma generate
+npx prisma migrate deploy
 npm run build
 npm run start:prod   # 或 npm run start:dev
 ```
@@ -57,10 +58,19 @@ npm run start:prod   # 或 npm run start:dev
 ```bash
 cd web
 npm install
-npm run dev   # http://localhost:3000
+npm run dev   # http://localhost:5173
 ```
 
 > 登录方式：在前端登录页粘贴 Canvas Access Token（当前版本无 OAuth2）。
+
+## 服务器部署注意事项
+
+- 前端构建前必须设置 `NEXT_PUBLIC_API_BASE_URL`，例如 `https://api.example.com/api`。该变量会在 `npm run build` 时固化；不要在生产构建里保留 `http://localhost:3000/api`。
+- 后端生产环境必须设置 `NODE_ENV=production`、`JWT_SECRET`、`ALLOWED_ORIGINS`、`DATABASE_URL`、`REDIS_URL`、`CANVAS_BASE_URL`。
+- `docker-compose.yml` 只启动 MySQL/Redis，不包含前后端应用；前后端需要用 PM2、systemd 或独立容器部署。
+- 生产环境建议将 `FILE_STORAGE_DIR` 设置为绝对路径，例如 `/var/lib/canvasbot/files`。
+- 如果使用多进程/多机器部署，只在一个专门进程上设置 `FILE_WORKER_ENABLED=true`；Web/API 进程可设为 `false`。
+- 当前认证保留 Canvas bearer token。必须使用 HTTPS，并保护数据库备份和日志，避免泄露 Canvas Access Token。
 
 ## 目录结构
 ```

@@ -22,13 +22,15 @@ npm install
 npm run dev
 ```
 
-访问 [http://localhost:3000](http://localhost:3000) (如果3000端口被占用会自动使用3001)
+访问 [http://localhost:5173](http://localhost:5173)
 
 ### 构建生产版本
 ```bash
 npm run build
 npm start
 ```
+
+生产构建前必须设置 `NEXT_PUBLIC_API_BASE_URL`，因为 Next.js 会在构建时固化该变量。
 
 ## 📁 项目结构
 
@@ -51,6 +53,12 @@ web/
 
 ```env
 NEXT_PUBLIC_API_BASE_URL=http://localhost:3000/api
+```
+
+部署到服务器时改为真实后端地址，例如：
+
+```env
+NEXT_PUBLIC_API_BASE_URL=https://api.example.com/api
 ```
 
 ## 📡 API集成
@@ -84,7 +92,7 @@ const result = await api.syncCourseFiles(courseId);
 
 ## 🛠️ 技术栈
 
-- **框架**: Next.js 14 (App Router)
+- **框架**: Next.js 16 (App Router)
 - **语言**: TypeScript
 - **样式**: Tailwind CSS
 - **HTTP客户端**: Axios

@@ -63,7 +63,7 @@ export class FilesController {
     @GetToken() token: string,
     @Response() res: ExpressResponse
   ) {
-    const file = await this.filesService.downloadSingleFile(token, fileId);
+    const file = await this.filesService.openSingleFileDownloadStream(token, fileId);
     
     // 设置响应头
     res.setHeader('Content-Type', file.contentType || 'application/octet-stream');
@@ -72,8 +72,18 @@ export class FilesController {
       res.setHeader('Content-Length', file.size);
     }
     
-    // 发送文件内容
-    res.send(file.buffer);
+    file.stream.on('error', error => {
+      if (!res.headersSent) {
+        res.status(500).json({
+          statusCode: 500,
+          message: error.message,
+          error: 'Internal Server Error',
+        });
+        return;
+      }
+      res.destroy(error);
+    });
+    file.stream.pipe(res);
   }
 
   /**
